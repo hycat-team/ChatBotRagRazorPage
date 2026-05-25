@@ -1,0 +1,183 @@
+# =============================================================================
+# .gitignore cho dự án RAG Chatbot
+# ASP.NET Core MVC + PostgreSQL + Docker
+# =============================================================================
+
+# ============================================================
+# QUAN TRỌNG: Bảo mật - Không bao giờ commit các file này!
+# ============================================================
+.env
+.env.*
+!.env.example
+*.pfx
+*.p12
+secrets.json
+appsettings.Production.json
+
+# ============================================================
+# .NET Build Output
+# ============================================================
+[Bb]in/
+[Oo]bj/
+[Pp]ublish/
+[Rr]elease/
+[Dd]ebug/
+x64/
+x86/
+[Ww][Ii][Nn]32/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Ll]og/
+[Ll]ogs/
+
+# ============================================================
+# .NET User/Local Settings (chứa connection strings nhạy cảm)
+# ============================================================
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+appsettings.Development.json
+appsettings.Local.json
+
+# ============================================================
+# Visual Studio
+# ============================================================
+.vs/
+*.rsuser
+*.pidb
+*.svclog
+*.scc
+
+# Roaming Settings
+[Pp]ackages/
+!.nuget/NuGet.Config
+
+# NuGet Cache
+*.nupkg
+*.nuspec
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# MSTest
+[Tt]est[Rr]esult*/
+[Bb]uild[Ll]og.*
+
+# Benchmark Results
+BenchmarkDotNet.Artifacts/
+
+# ============================================================
+# JetBrains Rider
+# ============================================================
+.idea/
+*.sln.iml
+
+# ============================================================
+# Visual Studio Code
+# ============================================================
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json.example
+
+# ============================================================
+# ASP.NET Core / Razor
+# ============================================================
+# Bundled output
+bundleconfig.json
+wwwroot/lib/
+
+# ============================================================
+# Entity Framework Core Migrations (tùy chọn - bỏ comment nếu không muốn track)
+# ============================================================
+# Migrations/
+
+# ============================================================
+# Temporary & Debug Files
+# ============================================================
+temp_*.json
+*.tmp
+*.temp
+*.log
+*.cache
+*.bak
+*.swp
+*.orig
+
+# ============================================================
+# Docker
+# ============================================================
+# Không ignore docker-compose.yml vì đó là cấu hình project
+# Chỉ ignore file override chứa secrets
+docker-compose.override.yml
+docker-compose.local.yml
+.dockerignore.local
+
+# ============================================================
+# Database
+# ============================================================
+*.db
+*.sqlite
+*.sqlite3
+*.db-shm
+*.db-wal
+pgdata/
+postgres_data/
+
+# ============================================================
+# Google / Cloud Credentials
+# ============================================================
+credentials.json
+token.json
+service-account*.json
+*-credentials.json
+google-credentials.json
+
+# ============================================================
+# Node.js (nếu có frontend tools)
+# ============================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn/
+
+# ============================================================
+# OS Generated Files
+# ============================================================
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Linux
+*~
+
+# ============================================================
+# Scratch / Temp Working Files (Antigravity AI)
+# ============================================================
+scratch/
+
+# ============================================================
+# Các file lớn không cần thiết
+# ============================================================
+*.pdf
+*.docx
+*.xlsx
+*.zip
+*.rar
+*.7z
