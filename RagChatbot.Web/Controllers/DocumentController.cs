@@ -27,7 +27,11 @@ namespace RagChatbot.Web.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Upload(int subjectId, IFormFile file, [FromServices] IGoogleDriveService driveService)
+        public async Task<IActionResult> Upload(
+            int subjectId,
+            IFormFile file,
+            [FromServices] IGoogleDriveService driveService,
+            [FromServices] ILocalStorageService localStorage)
         {
             if (file == null || file.Length == 0)
             {
@@ -35,32 +39,46 @@ namespace RagChatbot.Web.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            try 
+            string filePath;
+            string storageInfo;
+
+            try
             {
-                // Upload to Google Drive
+                // Attempt 1: Upload to Google Drive
                 using var stream = file.OpenReadStream();
-                var fileId = await driveService.UploadFileAsync(stream, file.FileName, file.ContentType);
-
-                // Save to database
-                var document = new Document
-                {
-                    SubjectId = subjectId,
-                    FileName = file.FileName,
-                    FilePath = fileId, // Store Google Drive File ID here
-                    Status = "Pending",
-                    UploadedAt = DateTime.UtcNow
-                };
-
-                _context.Documents.Add(document);
-                await _context.SaveChangesAsync();
-
-                TempData["Success"] = "Document uploaded successfully to Google Drive and is pending processing.";
+                filePath = await driveService.UploadFileAsync(stream, file.FileName, file.ContentType);
+                storageInfo = "Google Drive";
             }
-            catch (Exception ex)
+            catch (Exception driveEx)
             {
-                TempData["Error"] = "Error uploading to Google Drive: " + ex.Message;
+                // Attempt 2: Fallback — save to local server storage
+                try
+                {
+                    using var stream = file.OpenReadStream();
+                    filePath = await localStorage.SaveFileAsync(stream, file.FileName);
+                    storageInfo = "local server (Google Drive unavailable)";
+                }
+                catch (Exception localEx)
+                {
+                    TempData["Error"] = $"Upload failed. Google Drive: {driveEx.Message} | Local: {localEx.Message}";
+                    return RedirectToAction(nameof(Index));
+                }
             }
 
+            // Save to database regardless of storage backend
+            var document = new Document
+            {
+                SubjectId = subjectId,
+                FileName = file.FileName,
+                FilePath = filePath,
+                Status = "Pending",
+                UploadedAt = DateTime.UtcNow
+            };
+
+            _context.Documents.Add(document);
+            await _context.SaveChangesAsync();
+
+            TempData["Success"] = $"Document uploaded successfully to {storageInfo} and is pending processing.";
             return RedirectToAction(nameof(Index));
         }
 

@@ -42,6 +42,7 @@ namespace RagChatbot.Web.Services
             var chunkingService = scope.ServiceProvider.GetRequiredService<ITextChunkingService>();
             var aiService = scope.ServiceProvider.GetRequiredService<IAiService>();
             var driveService = scope.ServiceProvider.GetRequiredService<IGoogleDriveService>();
+            var localStorage = scope.ServiceProvider.GetRequiredService<ILocalStorageService>();
 
             var document = await dbContext.Documents
                 .Where(d => d.Status == "Pending")
@@ -57,15 +58,27 @@ namespace RagChatbot.Web.Services
 
                 _logger.LogInformation($"Processing document: {document.FileName}");
 
-                // Download from Google Drive to a temp file
+                // Resolve the file from the appropriate storage backend
                 var tempFile = Path.GetTempFileName() + Path.GetExtension(document.FileName);
                 IEnumerable<PageContent> pages;
                 try
                 {
-                    using (var driveStream = await driveService.DownloadFileAsync(document.FilePath))
+                    Stream fileContent;
+                    if (localStorage.IsLocalPath(document.FilePath))
+                    {
+                        _logger.LogInformation("Reading '{FileName}' from local storage.", document.FileName);
+                        fileContent = await localStorage.ReadFileAsync(document.FilePath);
+                    }
+                    else
+                    {
+                        _logger.LogInformation("Downloading '{FileName}' from Google Drive.", document.FileName);
+                        fileContent = await driveService.DownloadFileAsync(document.FilePath);
+                    }
+
+                    using (fileContent)
                     using (var fileStream = new FileStream(tempFile, FileMode.Create))
                     {
-                        await driveStream.CopyToAsync(fileStream);
+                        await fileContent.CopyToAsync(fileStream);
                     }
 
                     pages = await extractionService.ExtractTextAsync(tempFile);

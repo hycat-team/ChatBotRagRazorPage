@@ -27,6 +27,7 @@ builder.Services.AddScoped<IDocumentExtractionService, DocumentExtractionService
 builder.Services.AddScoped<ITextChunkingService, TextChunkingService>();
 builder.Services.AddScoped<IAiService, AiService>();
 builder.Services.AddSingleton<IGoogleDriveService, GoogleDriveService>();
+builder.Services.AddSingleton<ILocalStorageService, LocalStorageService>();
 builder.Services.AddScoped<IVectorSearchService, VectorSearchService>();
 
 // Register Background Service
