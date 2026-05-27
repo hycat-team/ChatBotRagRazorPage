@@ -1,0 +1,259 @@
+@model IEnumerable<RagChatbot.DataAccess.EntityModels.Document>
+@{
+    ViewData["Title"] = "Tài liệu";
+    var subjects = ViewBag.Subjects as IEnumerable<RagChatbot.DataAccess.EntityModels.Subject>;
+}
+
+<div class="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 transition-colors duration-200">
+    <div class="max-w-6xl mx-auto px-6 py-8 space-y-8">
+
+        <div class="flex items-center gap-3">
+            <span class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-500/10 flex items-center justify-center shadow-sm">
+                <i class="fa-solid fa-folder-open text-emerald-600 dark:text-emerald-400"></i>
+            </span>
+            <div>
+                <h1 class="text-xl font-bold text-gray-800 dark:text-slate-100">Quản lý tài liệu</h1>
+                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 font-medium">Upload và quản lý tài liệu học tập</p>
+            </div>
+        </div>
+
+        @if (TempData["Error"] != null) {
+            <div class="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm shadow-sm font-medium">
+                <i class="fa-solid fa-circle-exclamation mr-2"></i>@TempData["Error"]
+            </div>
+        }
+        @if (TempData["Success"] != null) {
+            <div class="bg-emerald-50 border border-emerald-200 text-emerald-600 px-4 py-3 rounded-xl text-sm shadow-sm font-medium">
+                <i class="fa-solid fa-circle-check mr-2"></i>@TempData["Success"]
+            </div>
+        }
+
+        <!-- ── Forms Row ──────────────────────────────────────── -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+            <!-- Add Subject -->
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm transition-colors duration-200">
+                <h2 class="text-sm font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-plus text-emerald-500 dark:text-emerald-400 text-xs"></i> Tạo môn học mới
+                </h2>
+                <form asp-action="CreateSubject" method="post" class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 dark:text-slate-300 mb-1">Mã môn</label>
+                        <input type="text" name="code" required placeholder="VD: TRIET01"
+                            class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-gray-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200 dark:focus:ring-emerald-500/20 outline-none transition-all" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 dark:text-slate-300 mb-1">Tên môn học</label>
+                        <input type="text" name="name" required placeholder="VD: Triết học Mác – Lê Nin"
+                            class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-gray-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200 dark:focus:ring-emerald-500/20 outline-none transition-all" />
+                    </div>
+                    <button type="submit"
+                        class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold py-2 rounded-lg shadow-md shadow-emerald-600/20 transition-all">
+                        Tạo môn học
+                    </button>
+                </form>
+            </div>
+
+            <!-- Upload Document -->
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm transition-colors duration-200">
+                <h2 class="text-sm font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-cloud-arrow-up text-emerald-500 dark:text-emerald-400 text-xs"></i> Upload tài liệu
+                </h2>
+                <form asp-action="Upload" method="post" enctype="multipart/form-data" class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 dark:text-slate-300 mb-1">Môn học</label>
+                        <select name="subjectId" required
+                            class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-gray-800 dark:text-slate-100 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200 dark:focus:ring-emerald-500/20 outline-none transition-all">
+                            <option value="" disabled selected class="text-slate-400 dark:text-slate-500">-- Chọn môn học --</option>
+                            @if (subjects != null) {
+                                foreach (var s in subjects) {
+                                    <option value="@s.Id">@s.Code – @s.Name</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 dark:text-slate-300 mb-1">File (PDF, DOCX)</label>
+                        <input type="file" name="file" accept=".pdf,.docx" required id="fileInput"
+                            class="hidden" onchange="updateFileName(this)" />
+                        <label for="fileInput"
+                            class="flex items-center gap-3 w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 border-dashed rounded-lg px-3 py-3 cursor-pointer hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-slate-900 transition-all group">
+                            <i class="fa-solid fa-file-arrow-up text-slate-400 dark:text-slate-500 group-hover:text-emerald-500 dark:group-hover:text-emerald-400"></i>
+                            <span id="fileNameLabel" class="text-sm font-medium text-slate-500 dark:text-slate-400 group-hover:text-emerald-700 dark:group-hover:text-emerald-400">Nhấp để chọn file...</span>
+                        </label>
+                    </div>
+                    <button type="submit"
+                        class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold py-2 rounded-lg shadow-md shadow-emerald-600/20 transition-all">
+                        Upload tài liệu
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- ── Subject List ───────────────────────────────────── -->
+        @if (subjects != null && subjects.Any()) {
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm transition-colors duration-200">
+            <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50">
+                <h2 class="text-sm font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-layer-group text-emerald-500 dark:text-emerald-400 text-xs"></i> Môn học (@subjects.Count())
+                </h2>
+            </div>
+            <div class="divide-y divide-slate-100 dark:divide-slate-800">
+                @foreach (var s in subjects) {
+                    <div class="flex items-center gap-4 px-5 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 group transition-colors" id="subject-row-@s.Id">
+                        <span class="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0">
+                            <i class="fa-solid fa-book text-emerald-600 dark:text-emerald-400 text-xs"></i>
+                        </span>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm font-bold text-slate-700 dark:text-slate-100 subject-name-display">@s.Name</p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">@s.Code · @s.Documents.Count() tài liệu</p>
+                        </div>
+                        <div class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onclick="inlineRenameSubject(@s.Id, '@s.Name.Replace("'","\\'")')"
+                                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 dark:text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 border border-transparent hover:border-emerald-200 dark:hover:border-emerald-500/20 transition-colors">
+                                <i class="fa-solid fa-pen text-[10px]"></i> Đổi tên
+                            </button>
+                            <button onclick="deleteSubjectDoc(@s.Id, '@s.Name.Replace("'","\\'")')"
+                                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 border border-transparent hover:border-red-200 dark:hover:border-red-500/20 transition-colors">
+                                <i class="fa-solid fa-trash text-[10px]"></i> Xóa
+                            </button>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+        }
+
+        <!-- ── Document Table ─────────────────────────────────── -->
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm transition-colors duration-200">
+            <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50">
+                <h2 class="text-sm font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
+                    <i class="fa-solid fa-file-lines text-emerald-500 dark:text-emerald-400 text-xs"></i> Tài liệu (@Model.Count())
+                </h2>
+            </div>
+
+            @if (!Model.Any()) {
+                <div class="px-5 py-12 text-center bg-white dark:bg-slate-900">
+                    <i class="fa-solid fa-inbox text-slate-300 dark:text-slate-700 text-4xl mb-3"></i>
+                    <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Chưa có tài liệu nào. Hãy upload tài liệu đầu tiên!</p>
+                </div>
+            } else {
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50">
+                                <th class="px-5 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Tên file</th>
+                                <th class="px-5 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Môn học</th>
+                                <th class="px-5 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Trạng thái</th>
+                                <th class="px-5 py-3 text-left text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Ngày upload</th>
+                                <th class="px-5 py-3 text-right text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
+                            @foreach (var doc in Model) {
+                                <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 group transition-colors" id="doc-row-@doc.Id">
+                                    <td class="px-5 py-3">
+                                        <div class="flex items-center gap-2.5">
+                                            <i class="fa-solid @(doc.FileName.EndsWith(".pdf") ? "fa-file-pdf text-red-500" : "fa-file-word text-blue-500") text-sm flex-shrink-0"></i>
+                                            <span class="text-slate-700 dark:text-slate-200 font-semibold max-w-xs truncate" title="@doc.FileName">@doc.FileName</span>
+                                        </div>
+                                    </td>
+                                    <td class="px-5 py-3">
+                                        <span class="px-2.5 py-1 rounded-md bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-bold border border-emerald-100 dark:border-emerald-500/20">@doc.Subject?.Code</span>
+                                    </td>
+                                    <td class="px-5 py-3">
+                                        @if (doc.Status == "Indexed") {
+                                            if (doc.DocumentChunks.Count == 0) {
+                                                <span class="px-2.5 py-1 rounded-full bg-yellow-50 dark:bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 text-xs font-bold border border-yellow-200 dark:border-yellow-500/20" title="PDF bị scan/flatten, không trích xuất được text">⚠️ Indexed (trống)</span>
+                                            } else {
+                                                <span class="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-bold border border-emerald-200 dark:border-emerald-500/20">✓ Indexed · @doc.DocumentChunks.Count chunks</span>
+                                            }
+                                        } else if (doc.Status == "Processing") {
+                                            <span class="px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 text-xs font-bold border border-blue-200 dark:border-blue-500/20 animate-pulse">⟳ Processing...</span>
+                                        } else if (doc.Status == "Failed") {
+                                            <span class="px-2.5 py-1 rounded-full bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 text-xs font-bold border border-red-200 dark:border-red-500/20">✗ Failed</span>
+                                        } else {
+                                            <span class="px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-bold border border-slate-200 dark:border-slate-700">⏳ Pending</span>
+                                        }
+                                    </td>
+                                    <td class="px-5 py-3 text-slate-500 dark:text-slate-400 text-xs whitespace-nowrap font-medium">
+                                        @doc.UploadedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                                    </td>
+                                    <td class="px-5 py-3 text-right">
+                                        <button onclick="deleteDocument(@doc.Id, '@doc.FileName.Replace("'","\\'")')"
+                                            class="opacity-0 group-hover:opacity-100 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 border border-transparent hover:border-red-200 dark:hover:border-red-500/20 transition-all">
+                                            <i class="fa-solid fa-trash mr-1 text-[10px]"></i>Xóa
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+function updateFileName(input) {
+    document.getElementById('fileNameLabel').textContent = input.files[0]?.name ?? 'Nhấp để chọn file...';
+}
+
+// ── Subject rename inline ────────────────────────────────────
+function inlineRenameSubject(id, currentName) {
+    const row = document.getElementById(`subject-row-${id}`);
+    const display = row.querySelector('.subject-name-display');
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = currentName;
+    input.className = 'bg-white dark:bg-slate-950 border border-emerald-500 dark:border-emerald-500 rounded px-2 py-1 text-sm text-gray-800 dark:text-slate-100 outline-none w-48 shadow-sm focus:ring-1 focus:ring-emerald-200 dark:focus:ring-emerald-500/20';
+    display.replaceWith(input);
+    input.focus(); input.select();
+
+    const save = async () => {
+        const newName = input.value.trim();
+        const span = document.createElement('p');
+        span.className = 'text-sm font-bold text-slate-700 dark:text-slate-100 subject-name-display';
+        if (!newName || newName === currentName) { span.textContent = currentName; input.replaceWith(span); return; }
+        const res = await fetch('/Document/RenameSubject', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `id=${id}&name=${encodeURIComponent(newName)}`
+        });
+        const data = await res.json();
+        span.textContent = data.success ? data.name : currentName;
+        input.replaceWith(span);
+    };
+    input.addEventListener('blur', save);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } if (e.key === 'Escape') { const s = document.createElement('p'); s.className = 'text-sm font-bold text-slate-700 dark:text-slate-100 subject-name-display'; s.textContent = currentName; input.replaceWith(s); } });
+}
+
+// ── Delete subject ───────────────────────────────────────────
+function deleteSubjectDoc(id, name) {
+    showConfirmModal('Xóa môn học', `"${name}" và toàn bộ tài liệu, lịch sử chat sẽ bị xóa vĩnh viễn.`, async () => {
+        const res = await fetch('/Document/DeleteSubject', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `id=${id}`
+        });
+        const data = await res.json();
+        if (data.success) window.location.reload();
+    });
+}
+
+// ── Delete document ──────────────────────────────────────────
+function deleteDocument(id, fileName) {
+    showConfirmModal('Xóa tài liệu', `Xóa "${fileName}" và toàn bộ ${id} vector chunks?`, async () => {
+        const res = await fetch('/Document/DeleteDocument', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `id=${id}`
+        });
+        const data = await res.json();
+        if (data.success) document.getElementById(`doc-row-${id}`)?.remove();
+    });
+}
+</script>
+}

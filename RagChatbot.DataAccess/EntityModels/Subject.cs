@@ -1,0 +1,20 @@
+using System;
+using System.Collections.Generic;
+
+namespace RagChatbot.DataAccess.EntityModels
+{
+    public class Subject
+    {
+        public int Id { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public int UserId { get; set; }
+
+        // Navigation Properties
+        public AppUser? User { get; set; }
+        public ICollection<Document> Documents { get; set; } = new List<Document>();
+        public ICollection<ChatSession> ChatSessions { get; set; } = new List<ChatSession>();
+    }
+}
