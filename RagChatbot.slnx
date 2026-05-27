@@ -1,3 +1,5 @@
 <Solution>
-  <Project Path="RagChatbot.Web/RagChatbot.Web.csproj" />
+  <Project Path="RagChatbot.Business/RagChatbot.Business.csproj" />
+  <Project Path="RagChatbot.DataAccess/RagChatbot.DataAccess.csproj" />
+  <Project Path="RagChatbot.Presentation/RagChatbot.Presentation.csproj" />
 </Solution>

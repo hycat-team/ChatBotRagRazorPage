@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="RAG Chatbot – Hỏi đáp thông minh từ tài liệu học tập của bạn." />
+    <title>@ViewData["Title"] – RAG Chatbot</title>
+
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet" />
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SignalR Client -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+    <!-- Marked (Markdown parser) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+    <script>
+        // Prevent FOUC (Flash of Unstyled Content)
+        if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: {
+                            50:  '#eef2ff',
+                            100: '#e0e7ff',
+                            400: '#818cf8',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        },
+                        surface: {
+                            900: '#0f172a',
+                            800: '#1e293b',
+                            700: '#273549',
+                            600: '#334155',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Sidebar active item */
+        .topic-item.active {
+            background: linear-gradient(90deg, rgba(16,185,129,0.1), rgba(16,185,129,0.02));
+            border-left: 3px solid #10b981;
+            color: #047857;
+        }
+        .topic-item { border-left: 3px solid transparent; transition: all 0.15s; }
+        .topic-item:hover { background: rgba(16,185,129,0.05); color: #047857; }
+
+        /* Nav link active */
+        .nav-link.active { color: #047857; background: rgba(16,185,129,0.1); font-weight: 600; }
+
+        /* Smooth transitions */
+        * { transition-property: background-color, border-color, color, opacity; transition-duration: 150ms; }
+        input, textarea, button { transition: none; }
+
+        /* Glass card */
+        .glass { background: rgba(255,255,255,0.9); backdrop-filter: blur(12px); border: 1px solid rgba(0,0,0,0.05); }
+
+        /* Modal overlay */
+        #confirmModal { backdrop-filter: blur(4px); }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 h-screen flex flex-col overflow-hidden transition-colors duration-200">
+
+    <!-- Top Navigation Bar -->
+    <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex-shrink-0 z-30 shadow-sm transition-colors duration-200">
+        <div class="px-4 flex items-center justify-between h-14">
+            <!-- Logo -->
+            <a asp-controller="Home" asp-action="Index"
+               class="flex items-center gap-2.5 font-bold text-gray-800 dark:text-slate-100 text-base select-none">
+                <span class="w-8 h-8 rounded-lg bg-emerald-500 flex items-center justify-center shadow-md shadow-emerald-500/20">
+                    <i class="fa-solid fa-robot text-sm text-white"></i>
+                </span>
+                <span>RAG <span class="text-emerald-600 dark:text-emerald-400">Chatbot</span></span>
+            </a>
+
+            <!-- Nav links & User Info -->
+            <div class="flex items-center gap-4">
+                <nav class="flex items-center gap-1 border-r border-slate-200 dark:border-slate-800 pr-4">
+                    <a asp-controller="Home" asp-action="Index"
+                       class="nav-link flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors">
+                        <i class="fa-solid fa-comments text-xs"></i> Chat
+                    </a>
+                    <a asp-controller="Document" asp-action="Index"
+                       class="nav-link flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors">
+                        <i class="fa-solid fa-folder-open text-xs"></i> Tài liệu
+                    </a>
+                </nav>
+                
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-2 text-sm text-slate-600 dark:text-emerald-100">
+                            <i class="fa-solid fa-circle-user text-lg text-emerald-500"></i>
+                            <span class="font-medium text-gray-800 dark:text-slate-100">@User.Identity.Name</span>
+                        </div>
+                        <button id="themeToggleBtn" onclick="toggleTheme()" class="text-sm text-slate-500 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 px-2 py-1 rounded transition-colors" title="Chuyển chế độ Sáng/Tối">
+                            <i id="themeToggleIcon" class="fa-solid fa-moon"></i>
+                        </button>
+                        <form asp-controller="Auth" asp-action="Logout" method="post" class="m-0">
+                            <button type="submit" class="text-sm text-slate-500 dark:text-slate-300 hover:text-red-500 dark:hover:text-red-400 px-2 py-1 rounded transition-colors" title="Đăng xuất">
+                                <i class="fa-solid fa-right-from-bracket"></i>
+                            </button>
+                        </form>
+                    </div>
+                }
+            </div>
+        </div>
+    </header>
+
+    <!-- Confirm Modal (dùng chung) -->
+    <div id="confirmModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 dark:bg-slate-950/80 backdrop-blur-sm">
+        <div class="glass dark:bg-slate-900/95 rounded-2xl p-6 w-full max-w-sm mx-4 shadow-xl dark:border-slate-800">
+            <div class="flex items-center gap-3 mb-3">
+                <span class="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
+                    <i class="fa-solid fa-triangle-exclamation text-red-500 dark:text-red-400"></i>
+                </span>
+                <div>
+                    <p class="font-semibold text-gray-900 dark:text-slate-100" id="confirmTitle">Xác nhận xóa</p>
+                    <p class="text-sm text-slate-500 dark:text-slate-400 mt-0.5" id="confirmMessage">Bạn có chắc muốn xóa mục này?</p>
+                </div>
+            </div>
+            <div class="flex gap-2 mt-5 justify-end">
+                <button onclick="closeConfirmModal()"
+                    class="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 transition-colors">
+                    Hủy
+                </button>
+                <button id="confirmOkBtn"
+                    class="px-4 py-2 rounded-lg text-sm font-medium bg-red-500 hover:bg-red-600 text-white shadow-sm shadow-red-500/30">
+                    Xóa
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <main class="flex-1 overflow-hidden flex flex-col">
+        @RenderBody()
+    </main>
+
+    <script>
+        // ── Confirm Modal helpers ────────────────────────────────
+        let _confirmCallback = null;
+        function showConfirmModal(title, message, onConfirm) {
+            document.getElementById('confirmTitle').textContent = title;
+            document.getElementById('confirmMessage').textContent = message;
+            _confirmCallback = onConfirm;
+            document.getElementById('confirmModal').classList.remove('hidden');
+            document.getElementById('confirmModal').classList.add('flex');
+        }
+        function closeConfirmModal() {
+            document.getElementById('confirmModal').classList.add('hidden');
+            document.getElementById('confirmModal').classList.remove('flex');
+            _confirmCallback = null;
+        }
+        document.getElementById('confirmOkBtn').addEventListener('click', () => {
+            if (_confirmCallback) _confirmCallback();
+            closeConfirmModal();
+        });
+
+        // Active nav link highlight
+        const path = window.location.pathname.toLowerCase();
+        document.querySelectorAll('.nav-link').forEach(link => {
+            const href = link.getAttribute('href')?.toLowerCase() ?? '';
+            if ((path === '/' && href.includes('home')) || (path !== '/' && href && path.startsWith(href) && href !== '/')) {
+                link.classList.add('active');
+                // Optional: For dark mode active link custom style, we can append tailwind classes instead of CSS if needed.
+                // The current CSS for .nav-link.active is in <style> block, which we can update via Tailwind or keep as is.
+            }
+        });
+
+        // Theme Toggle logic
+        function updateThemeIcon() {
+            const icon = document.getElementById('themeToggleIcon');
+            if (icon) {
+                if (document.documentElement.classList.contains('dark')) {
+                    icon.className = 'fa-solid fa-sun';
+                } else {
+                    icon.className = 'fa-solid fa-moon';
+                }
+            }
+        }
+        function toggleTheme() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.theme = 'light';
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.theme = 'dark';
+            }
+            updateThemeIcon();
+        }
+        // Initial setup for icon
+        updateThemeIcon();
+    </script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

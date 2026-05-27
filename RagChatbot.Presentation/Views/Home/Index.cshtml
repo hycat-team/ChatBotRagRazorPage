@@ -1,0 +1,446 @@
+@model IEnumerable<RagChatbot.DataAccess.EntityModels.Subject>
+@{
+    ViewData["Title"] = "Chat";
+}
+
+<div class="flex h-full overflow-hidden">
+
+    <!-- ── SIDEBAR TRÁI: Topics ─────────────────────────────── -->
+    <aside class="w-60 flex-shrink-0 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col shadow-[2px_0_10px_rgba(0,0,0,0.02)] z-10 transition-colors duration-200">
+        <div class="px-4 pt-4 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <p class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Môn học</p>
+        </div>
+
+        <div class="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
+            @foreach (var subject in Model)
+            {
+                <div class="topic-item group flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer"
+                     data-id="@subject.Id" data-name="@subject.Name"
+                     onclick="selectSubject(@subject.Id, '@subject.Name.Replace("'", "\\'")', this)">
+                    <span class="w-7 h-7 rounded-md bg-emerald-100 dark:bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                        <i class="fa-solid fa-book-open text-emerald-600 dark:text-emerald-400 text-xs"></i>
+                    </span>
+                    <span class="flex-1 text-sm font-medium text-slate-700 dark:text-slate-200 truncate topic-name group-hover:text-emerald-700 dark:group-hover:text-emerald-400">@subject.Name</span>
+                    <!-- Action buttons -->
+                    <span class="hidden group-hover:flex items-center gap-1 flex-shrink-0">
+                        <button onclick="event.stopPropagation(); renameSubject(@subject.Id, this)"
+                            class="w-6 h-6 rounded flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-emerald-600 dark:hover:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-500/10"
+                            title="Đổi tên">
+                            <i class="fa-solid fa-pen text-[10px]"></i>
+                        </button>
+                        <button onclick="event.stopPropagation(); deleteSubject(@subject.Id, '@subject.Name.Replace("'", "\\'")')"
+                            class="w-6 h-6 rounded flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10"
+                            title="Xóa">
+                            <i class="fa-solid fa-trash text-[10px]"></i>
+                        </button>
+                    </span>
+                </div>
+            }
+        </div>
+
+        <!-- Connection status -->
+        <div class="px-3 py-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2 bg-slate-50/50 dark:bg-slate-950/50">
+            <span id="statusDot" class="w-2 h-2 rounded-full bg-red-500 flex-shrink-0 shadow-sm"></span>
+            <span id="statusText" class="text-xs font-medium text-slate-500 dark:text-slate-400">Disconnected</span>
+        </div>
+    </aside>
+
+    <!-- ── CHAT AREA ──────────────────────────────────────────── -->
+    <div class="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-950 transition-colors duration-200">
+        <!-- Chat header -->
+        <div class="flex items-center justify-between px-5 py-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex-shrink-0 z-10 transition-colors duration-200">
+            <div>
+                <h2 id="chatTitle" class="text-sm font-bold text-gray-800 dark:text-slate-100">Chọn môn học để bắt đầu</h2>
+                <p id="chatSubtitle" class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">RAG Chatbot Workspace</p>
+            </div>
+        </div>
+
+        <!-- Messages -->
+        <div id="chatMessages" class="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+            <div class="flex justify-center">
+                <span class="px-4 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-600 dark:text-slate-300 shadow-sm">
+                    Chọn môn học từ sidebar để bắt đầu chat
+                </span>
+            </div>
+        </div>
+
+        <!-- Input -->
+        <div class="px-4 py-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shadow-[0_-2px_10px_rgba(0,0,0,0.02)] flex-shrink-0 transition-colors duration-200">
+            <form id="chatForm" class="flex items-end gap-3 max-w-4xl mx-auto">
+                <input type="hidden" id="currentSubjectId" />
+                <input type="hidden" id="currentSessionId" />
+                <div class="flex-1 bg-white dark:bg-slate-950 rounded-xl border border-slate-300 dark:border-slate-700 shadow-sm focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-100 dark:focus-within:border-emerald-500 dark:focus-within:ring-emerald-500/20 transition-all">
+                    <textarea id="messageInput" rows="1"
+                        class="w-full bg-transparent border-0 focus:ring-0 resize-none px-4 py-3 text-sm text-gray-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 block"
+                        placeholder="Chọn môn học trước..." disabled></textarea>
+                </div>
+                <button type="submit" id="sendBtn"
+                    class="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white flex items-center justify-center flex-shrink-0 disabled:opacity-50 disabled:from-slate-300 disabled:to-slate-400 dark:disabled:from-slate-700 dark:disabled:to-slate-800 shadow-md shadow-emerald-500/20 transition-all"
+                    disabled>
+                    <i class="fa-solid fa-paper-plane text-sm"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ── PANEL PHẢI: Document Filter ──────────────────────── -->
+    <aside id="docFilterPanel" class="w-60 flex-shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col shadow-[-2px_0_10px_rgba(0,0,0,0.02)] hidden z-10 transition-colors duration-200">
+        <div class="px-4 pt-4 pb-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+            <p class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Tài liệu</p>
+            <button onclick="toggleSelectAll()" id="selectAllBtn"
+                class="text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 font-medium bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded transition-colors">Bỏ chọn tất cả</button>
+        </div>
+        <div id="docList" class="flex-1 overflow-y-auto py-2 px-2 space-y-1">
+            <p class="text-xs text-slate-500 dark:text-slate-400 px-2 py-2">Đang tải...</p>
+        </div>
+        <div class="px-3 py-2 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50">
+            <p id="filterInfo" class="text-xs font-medium text-slate-500 dark:text-slate-400 text-center">Tất cả tài liệu được chọn</p>
+        </div>
+    </aside>
+</div>
+
+@section Scripts {
+<script>
+let currentSubjectId = null;
+let currentSessionId = "";
+let isReceivingStream = false;
+let currentAssistantMessageDiv = null;
+let currentAssistantMarkdown = "";
+let isAiThinking = false;
+let allDocIds = [];
+
+// ── SignalR ──────────────────────────────────────────────────
+const connection = new signalR.HubConnectionBuilder()
+    .withUrl("/chatHub")
+    .configureLogging(signalR.LogLevel.Warning)
+    .build();
+
+async function startConnection() {
+    try {
+        if (connection.state === signalR.HubConnectionState.Connected) return;
+        await connection.start();
+        updateStatus(true);
+        if (currentSubjectId) connection.invoke("LoadSubjectHistory", currentSubjectId).catch(console.error);
+    } catch (err) {
+        console.error(err);
+        setTimeout(startConnection, 5000);
+    }
+}
+
+connection.onclose(async () => { updateStatus(false); await startConnection(); });
+
+function updateStatus(connected) {
+    document.getElementById("statusDot").className = `w-2 h-2 rounded-full flex-shrink-0 ${connected ? 'bg-emerald-500' : 'bg-red-500'}`;
+    document.getElementById("statusText").textContent = connected ? "Connected" : "Disconnected";
+}
+
+startConnection();
+
+// ── Select Subject ───────────────────────────────────────────
+function selectSubject(id, name, el) {
+    currentSubjectId = id;
+    currentSessionId = "";
+
+    // Sidebar highlight
+    document.querySelectorAll('.topic-item').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+
+    document.getElementById("chatTitle").textContent = name;
+    document.getElementById("chatSubtitle").textContent = "Đang tải lịch sử...";
+    document.getElementById("messageInput").disabled = false;
+    document.getElementById("messageInput").placeholder = "Hỏi về " + name + "...";
+    document.getElementById("sendBtn").disabled = false;
+    document.getElementById("messageInput").focus();
+
+    document.getElementById("chatMessages").innerHTML = `
+        <div class="flex justify-center">
+            <span class="px-4 py-1.5 rounded-full bg-surface-700 text-xs text-slate-400 animate-pulse">Đang tải lịch sử...</span>
+        </div>`;
+
+    // Load history
+    if (connection.state === signalR.HubConnectionState.Connected)
+        connection.invoke("LoadSubjectHistory", id).catch(console.error);
+
+    // Load document filter
+    loadDocFilter(id);
+}
+
+// ── Document Filter ──────────────────────────────────────────
+async function loadDocFilter(subjectId) {
+    const panel = document.getElementById("docFilterPanel");
+    const list = document.getElementById("docList");
+    panel.classList.remove("hidden");
+    list.innerHTML = '<p class="text-xs text-slate-500 px-2 py-2 animate-pulse">Đang tải...</p>';
+    allDocIds = [];
+
+    try {
+        const res = await fetch(`/Document/GetSubjectDocuments?subjectId=${subjectId}`);
+        const docs = await res.json();
+        allDocIds = docs.map(d => d.id || d.Id);
+
+        if (docs.length === 0) {
+            list.innerHTML = '<p class="text-xs text-slate-500 px-2 py-3">Chưa có tài liệu nào được index.</p>';
+            updateFilterInfo();
+            return;
+        }
+
+        list.innerHTML = docs.map(d => {
+            const docId = d.id || d.Id;
+            const docFileName = d.fileName || d.FileName;
+            return `
+            <label class="flex items-start gap-2.5 px-2 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer group transition-colors">
+                <input type="checkbox" value="${docId}" checked
+                    onchange="updateFilterInfo()"
+                    class="doc-checkbox mt-0.5 w-3.5 h-3.5 rounded border-slate-300 dark:border-slate-600 text-emerald-500 focus:ring-emerald-500 focus:ring-1 cursor-pointer flex-shrink-0 transition-colors dark:bg-slate-950 dark:checked:bg-emerald-500">
+                <span class="text-xs font-medium text-slate-600 dark:text-slate-300 leading-snug break-all group-hover:text-emerald-700 dark:group-hover:text-slate-100 transition-colors" title="${docFileName}">${docFileName}</span>
+            </label>`;
+        }).join('');
+
+        updateFilterInfo();
+    } catch(e) {
+        list.innerHTML = '<p class="text-xs text-red-500 px-2 py-2">Lỗi tải danh sách.</p>';
+    }
+}
+
+function getSelectedDocIds() {
+    return [...document.querySelectorAll('.doc-checkbox:checked')].map(c => parseInt(c.value));
+}
+
+function updateFilterInfo() {
+    const selected = getSelectedDocIds().length;
+    const total = allDocIds.length;
+    document.getElementById("filterInfo").textContent =
+        selected === total ? "Tất cả tài liệu được chọn" : `${selected}/${total} tài liệu được chọn`;
+    document.getElementById("selectAllBtn").textContent =
+        selected === total ? "Bỏ chọn tất cả" : "Chọn tất cả";
+}
+
+function toggleSelectAll() {
+    const checkboxes = document.querySelectorAll('.doc-checkbox');
+    const allChecked = [...checkboxes].every(c => c.checked);
+    checkboxes.forEach(c => c.checked = !allChecked);
+    updateFilterInfo();
+}
+
+// ── SignalR Callbacks ────────────────────────────────────────
+connection.on("SessionCreated", id => { currentSessionId = id; });
+
+connection.on("SessionLoaded", (sessionId, messages) => {
+    currentSessionId = sessionId;
+    const container = document.getElementById("chatMessages");
+    container.innerHTML = "";
+
+    document.getElementById("chatSubtitle").textContent =
+        messages && messages.length > 0 ? `${messages.length} tin nhắn` : "Phiên chat mới";
+
+    if (!messages || messages.length === 0) {
+        container.innerHTML = `<div class="flex justify-center"><span class="px-4 py-1.5 rounded-full bg-surface-700 text-xs text-slate-400">Bắt đầu phiên chat mới ✨</span></div>`;
+        return;
+    }
+
+    messages.forEach(msg => appendMessage(msg.role, msg.content, msg.citations));
+    container.scrollTop = container.scrollHeight;
+});
+
+connection.on("ReceiveToken", (token, isEnd) => {
+    const container = document.getElementById("chatMessages");
+
+    if (!isReceivingStream && !isEnd && token === "") {
+        removeThinkingIndicator();
+        isReceivingStream = true;
+        currentAssistantMarkdown = "";
+        if (!currentAssistantMessageDiv) createAiBubble();
+        currentAssistantMessageDiv.innerHTML = '<span class="text-brand-400 animate-pulse font-bold text-lg">▍</span>';
+        container.scrollTop = container.scrollHeight;
+    } else if (isReceivingStream && !isEnd) {
+        currentAssistantMarkdown += token;
+        currentAssistantMessageDiv.innerHTML = marked.parse(currentAssistantMarkdown) +
+            '<span class="text-brand-400 animate-pulse font-bold text-lg inline-block ml-1">▍</span>';
+        container.scrollTop = container.scrollHeight;
+    } else if (isEnd) {
+        isReceivingStream = false;
+        if (currentAssistantMessageDiv) {
+            currentAssistantMessageDiv.innerHTML = marked.parse(currentAssistantMarkdown);
+            if (token && token !== "null" && token !== "[]") renderCitations(token, currentAssistantMessageDiv);
+        }
+        container.scrollTop = container.scrollHeight;
+    }
+});
+
+connection.on("ReceiveError", msg => {
+    removeThinkingIndicator();
+    isReceivingStream = false;
+    if (currentAssistantMessageDiv)
+        currentAssistantMessageDiv.innerHTML = `<div class="text-red-400 text-sm"><i class="fa-solid fa-circle-exclamation mr-1"></i>${msg}</div>`;
+});
+
+// ── Chat Form ────────────────────────────────────────────────
+document.getElementById("chatForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    if (!currentSubjectId) return;
+    const input = document.getElementById("messageInput");
+    const msg = input.value.trim();
+    if (!msg) return;
+    input.value = "";
+    appendMessage("user", msg, null);
+
+    const selectedDocs = getSelectedDocIds();
+    try {
+        showThinkingIndicator();
+        await connection.send("SendMessage", currentSessionId, currentSubjectId, msg, selectedDocs);
+    } catch(err) {
+        removeThinkingIndicator();
+        if (currentAssistantMessageDiv)
+            currentAssistantMessageDiv.innerHTML = `<div class="text-red-400 text-sm"><i class="fa-solid fa-circle-exclamation mr-1"></i>Có lỗi xảy ra.</div>`;
+    }
+});
+
+document.getElementById("messageInput").addEventListener("keydown", e => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); document.getElementById("chatForm").dispatchEvent(new Event("submit")); }
+});
+
+// ── UI Helpers ───────────────────────────────────────────────
+function appendMessage(role, content, citations) {
+    const container = document.getElementById("chatMessages");
+    const wrapper = document.createElement("div");
+
+    if (role === "user") {
+        wrapper.className = "flex flex-row-reverse items-start gap-3";
+        wrapper.innerHTML = `
+            <span class="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 mt-1 shadow-sm">
+                <i class="fa-solid fa-user text-[11px] text-slate-500 dark:text-slate-300"></i>
+            </span>
+            <div class="bg-emerald-600 dark:bg-emerald-600 text-white rounded-2xl rounded-tr-sm px-5 py-3 text-sm max-w-[75%] shadow-md">${escHtml(content)}</div>`;
+    } else {
+        wrapper.className = "flex items-start gap-3";
+        const bubble = document.createElement("div");
+        bubble.className = "flex-1 bg-white dark:bg-slate-900 rounded-2xl rounded-tl-sm px-5 py-4 text-sm text-gray-800 dark:text-slate-100 prose prose-sm dark:prose-invert max-w-none border border-slate-200 dark:border-slate-700 shadow-sm transition-colors duration-200";
+        bubble.innerHTML = marked.parse(content);
+        if (citations) renderCitations(citations, bubble);
+
+        wrapper.innerHTML = `<span class="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center flex-shrink-0 mt-1 shadow-md shadow-emerald-500/30">
+            <i class="fa-solid fa-robot text-[11px] text-white"></i></span>`;
+        wrapper.appendChild(bubble);
+    }
+
+    container.appendChild(wrapper);
+    container.scrollTop = container.scrollHeight;
+}
+
+function createAiBubble() {
+    const container = document.getElementById("chatMessages");
+    const wrapper = document.createElement("div");
+    wrapper.className = "flex items-start gap-3";
+    const bubble = document.createElement("div");
+    bubble.className = "flex-1 bg-white dark:bg-slate-900 rounded-2xl rounded-tl-sm px-5 py-4 text-sm text-gray-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700 shadow-sm transition-colors duration-200";
+    wrapper.innerHTML = `<span class="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-500 to-green-600 flex items-center justify-center flex-shrink-0 mt-1 shadow-md shadow-emerald-500/30">
+        <i class="fa-solid fa-robot text-[11px] text-white"></i></span>`;
+    wrapper.appendChild(bubble);
+    container.appendChild(wrapper);
+    currentAssistantMessageDiv = bubble;
+}
+
+function showThinkingIndicator() {
+    createAiBubble();
+    currentAssistantMessageDiv.innerHTML = `
+        <div class="flex items-center gap-2 text-emerald-600">
+            <span class="text-xs italic font-medium">AI đang xử lý</span>
+            <span class="flex gap-1">
+                <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" style="animation-delay:0s"></span>
+                <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" style="animation-delay:.15s"></span>
+                <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" style="animation-delay:.3s"></span>
+            </span>
+        </div>`;
+    isAiThinking = true;
+    isReceivingStream = false;
+}
+
+function removeThinkingIndicator() {
+    if (isAiThinking && currentAssistantMessageDiv) {
+        currentAssistantMessageDiv.innerHTML = "";
+        isAiThinking = false;
+    }
+}
+
+function renderCitations(citationsJson, el) {
+    try {
+        const cits = JSON.parse(citationsJson);
+        if (!cits || cits.length === 0) return;
+        const div = document.createElement("div");
+        div.className = "mt-4 pt-3 border-t border-slate-200 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400";
+        div.innerHTML = `<p class="font-semibold mb-1 text-slate-600 dark:text-slate-300">Nguồn tham khảo:</p><ul class="space-y-1">` +
+            cits.map((c,i) => `<li class="flex items-start gap-1.5">
+                <span class="text-emerald-600 dark:text-emerald-400 font-bold">[${i+1}]</span>
+                <span class="font-medium hover:text-emerald-700 dark:hover:text-emerald-400 cursor-help" title="${c.ContentSnippet}">${c.FileName} – trang ${c.Page}</span>
+            </li>`).join('') + `</ul>`;
+        el.appendChild(div);
+    } catch(e) {}
+}
+
+function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Topic Management ─────────────────────────────────────────
+function renameSubject(id, btn) {
+    const item = btn.closest('.topic-item');
+    const nameEl = item.querySelector('.topic-name');
+    const oldName = nameEl.textContent;
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = oldName;
+    input.className = 'flex-1 bg-surface-600 border border-brand-500 rounded px-2 py-0.5 text-xs text-white outline-none w-full';
+    nameEl.replaceWith(input);
+    input.focus();
+    input.select();
+
+    const save = async () => {
+        const newName = input.value.trim();
+        if (!newName || newName === oldName) { input.replaceWith(createNameSpan(oldName)); return; }
+        const res = await fetch('/Document/RenameSubject', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `id=${id}&name=${encodeURIComponent(newName)}`
+        });
+        const data = await res.json();
+        input.replaceWith(createNameSpan(data.success ? data.name : oldName));
+        if (data.success && currentSubjectId == id) document.getElementById("chatTitle").textContent = data.name;
+    };
+
+    input.addEventListener('blur', save);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } if (e.key === 'Escape') { input.replaceWith(createNameSpan(oldName)); } });
+}
+
+function createNameSpan(text) {
+    const span = document.createElement('span');
+    span.className = 'flex-1 text-sm font-medium truncate topic-name';
+    span.textContent = text;
+    return span;
+}
+
+function deleteSubject(id, name) {
+    showConfirmModal('Xóa môn học', `Xóa "${name}" sẽ xóa toàn bộ tài liệu và lịch sử chat. Không thể khôi phục!`, async () => {
+        const res = await fetch('/Document/DeleteSubject', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: `id=${id}`
+        });
+        const data = await res.json();
+        if (data.success) {
+            document.querySelector(`.topic-item[data-id="${id}"]`)?.remove();
+            if (currentSubjectId == id) {
+                currentSubjectId = null;
+                currentSessionId = "";
+                document.getElementById("chatTitle").textContent = "Chọn môn học để bắt đầu";
+                document.getElementById("chatSubtitle").textContent = "RAG Chatbot";
+                document.getElementById("chatMessages").innerHTML = `<div class="flex justify-center"><span class="px-4 py-1.5 rounded-full bg-surface-700 text-xs text-slate-400">Chọn môn học từ sidebar để bắt đầu chat</span></div>`;
+                document.getElementById("docFilterPanel").classList.add("hidden");
+                document.getElementById("messageInput").disabled = true;
+                document.getElementById("sendBtn").disabled = true;
+            }
+        }
+    });
+}
+</script>
+}
