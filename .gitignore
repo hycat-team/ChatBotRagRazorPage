@@ -12,6 +12,7 @@
 *.pfx
 *.p12
 secrets.json
+appsettings.json
 appsettings.Production.json
 
 # ============================================================

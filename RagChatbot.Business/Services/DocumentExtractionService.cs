@@ -61,7 +61,7 @@ namespace RagChatbot.Business.Services
             
             using (var wordDocument = WordprocessingDocument.Open(filePath, false))
             {
-                var body = wordDocument.MainDocumentPart?.Document.Body;
+                var body = wordDocument.MainDocumentPart?.Document?.Body;
                 if (body != null)
                 {
                     // For DOCX, we don't have clear page numbers easily accessible via OpenXml.

@@ -1,21 +1,20 @@
 services:
   db:
-    image: pgvector/pgvector:pg16
-    container_name: rag_postgres_db
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: rag_sqlserver_db
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: Password123!
-      POSTGRES_DB: RagChatbotDb
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: Password123!
     ports:
-      - "5432:5432"
+      - "1433:1433"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - sqldata:/var/opt/mssql
     restart: unless-stopped
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 1G
+          cpus: '2.0'
+          memory: 2G
 
 volumes:
-  pgdata:
+  sqldata:

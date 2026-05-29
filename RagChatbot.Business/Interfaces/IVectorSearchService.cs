@@ -3,7 +3,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.SemanticKernel;
-using Pgvector;
+
 using RagChatbot.DataAccess.EntityModels;
 
 namespace RagChatbot.Business.Interfaces
@@ -12,7 +12,7 @@ namespace RagChatbot.Business.Interfaces
     {
         Task<List<DocumentChunk>> SearchSimilarChunksAsync(
             int subjectId,
-            Pgvector.Vector queryEmbedding,
+            ReadOnlyMemory<float> queryEmbedding,
             int topK = 5,
             List<int>? documentIds = null);
     }

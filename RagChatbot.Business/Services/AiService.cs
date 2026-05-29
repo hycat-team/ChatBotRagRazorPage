@@ -8,7 +8,8 @@ using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Embeddings;
 using Microsoft.SemanticKernel.Connectors.OpenAI;
 using System.Runtime.CompilerServices;
-using Pgvector;
+using System;
+#pragma warning disable CS0618
 
 namespace RagChatbot.Business.Services
 {
@@ -23,11 +24,11 @@ namespace RagChatbot.Business.Services
 
         public AiService(IConfiguration configuration)
         {
-            var apiKeyString = Environment.GetEnvironmentVariable("OPENAI_API_KEY") ?? configuration["OpenAI:ApiKey"];
+            var apiKeyString = configuration["GoogleAi:ApiKey"] ?? configuration["OpenAI:ApiKey"] ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY");
             if (string.IsNullOrEmpty(apiKeyString)) apiKeyString = "dummy-key-to-prevent-crash";
-            var endpoint = Environment.GetEnvironmentVariable("OPENAI_ENDPOINT") ?? configuration["OpenAI:Endpoint"];
-            var chatModel = Environment.GetEnvironmentVariable("OPENAI_CHAT_MODEL") ?? configuration["OpenAI:ChatModel"];
-            var embeddingModelString = Environment.GetEnvironmentVariable("OPENAI_EMBEDDING_MODEL") ?? configuration["OpenAI:EmbeddingModel"];
+            var endpoint = configuration["GoogleAi:Endpoint"] ?? configuration["OpenAI:Endpoint"] ?? Environment.GetEnvironmentVariable("OPENAI_ENDPOINT");
+            var chatModel = configuration["GoogleAi:ChatModel"] ?? configuration["OpenAI:ChatModel"] ?? Environment.GetEnvironmentVariable("OPENAI_CHAT_MODEL");
+            var embeddingModelString = configuration["GoogleAi:EmbeddingModel"] ?? configuration["OpenAI:EmbeddingModel"] ?? Environment.GetEnvironmentVariable("OPENAI_EMBEDDING_MODEL");
 
             var apiKeys = apiKeyString.Split(',').Select(k => k.Trim()).ToArray();
             var firstApiKey = apiKeys[0];
@@ -89,20 +90,20 @@ namespace RagChatbot.Business.Services
             }
         }
 
-        public async Task<Vector> GenerateEmbeddingAsync(string text)
+        public async Task<ReadOnlyMemory<float>> GenerateEmbeddingAsync(string text)
         {
             var result = await _embeddingGeneration.GenerateEmbeddingAsync(text);
-            return new Vector(result.ToArray());
+            return result;
         }
 
-        public async Task<List<Vector>> GenerateEmbeddingsAsync(IList<string> texts)
+        public async Task<List<ReadOnlyMemory<float>>> GenerateEmbeddingsAsync(IList<string> texts)
         {
             var results = await _embeddingGeneration.GenerateEmbeddingsAsync(texts);
-            return results.Select(r => new Vector(r.ToArray())).ToList();
+            return results.ToList();
         }
 #pragma warning restore SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
-        public async IAsyncEnumerable<string> GetChatStreamingResponseAsync(string systemPrompt, string userMessage, [EnumeratorCancellation] IEnumerable<RagChatbot.DataAccess.EntityModels.ChatMessage>? history = null)
+        public async IAsyncEnumerable<string> GetChatStreamingResponseAsync(string systemPrompt, string userMessage, IEnumerable<RagChatbot.DataAccess.EntityModels.ChatMessage>? history = null)
         {
             var chatHistory = new ChatHistory(systemPrompt);
             

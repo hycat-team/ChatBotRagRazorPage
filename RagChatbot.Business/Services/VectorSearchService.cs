@@ -6,8 +6,9 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
 using RagChatbot.DataAccess.EntityModels;
 using RagChatbot.DataAccess.Interfaces;
-using RagChatbot.Business.Interfaces;
-using Pgvector.EntityFrameworkCore;
+
+using System.Linq;
+using System.Numerics.Tensors;
 
 namespace RagChatbot.Business.Services
 {
@@ -24,7 +25,7 @@ namespace RagChatbot.Business.Services
 
         public async Task<List<DocumentChunk>> SearchSimilarChunksAsync(
             int subjectId,
-            Pgvector.Vector queryEmbedding,
+            ReadOnlyMemory<float> queryEmbedding,
             int topK = 5,
             List<int>? documentIds = null)
         {
@@ -44,10 +45,13 @@ namespace RagChatbot.Business.Services
                 query = query.Where(c => documentIds.Contains(c.DocumentId));
             }
 
-            var chunks = await query
-                .OrderBy(c => c.Embedding!.CosineDistance(queryEmbedding))
+            var allChunks = await query.ToListAsync();
+
+            var chunks = allChunks
+                .Where(c => c.Embedding.HasValue)
+                .OrderByDescending(c => TensorPrimitives.CosineSimilarity(c.Embedding!.Value.Span, queryEmbedding.Span))
                 .Take(topK)
-                .ToListAsync();
+                .ToList();
 
             return chunks;
         }

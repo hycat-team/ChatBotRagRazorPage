@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using RagChatbot.DataAccess.Data;
 using RagChatbot.Business.Services;
-using DotNetEnv;
+
 using RagChatbot.DataAccess.Repositories;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using RagChatbot.DataAccess.Interfaces;
@@ -9,18 +9,16 @@ using RagChatbot.DataAccess.EntityModels;
 using RagChatbot.Business.Interfaces;
 var builder = WebApplication.CreateBuilder(args);
 
-// Load .env file
-Env.Load();
-Env.Load("../.env");
+
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
 // Setup DbContext
-var connectionString = Environment.GetEnvironmentVariable("DB_CONNECTION_STRING") ?? builder.Configuration.GetConnectionString("DefaultConnection");
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
-    options.UseNpgsql(connectionString, o => o.UseVector());
+    options.UseSqlServer(connectionString);
 });
 
 // Add SignalR

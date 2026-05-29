@@ -58,7 +58,7 @@ namespace RagChatbot.Business.Services
         public string GetRelativePath(string filePath)
             => filePath?.StartsWith(LocalPrefix) == true
                 ? filePath[LocalPrefix.Length..]
-                : filePath;
+                : (filePath ?? string.Empty);
     }
 }
 
