@@ -1,39 +1,29 @@
-using RagChatbot.DataAccess.Interfaces;
-using System.Text.Json;
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
-using RagChatbot.DataAccess.Data;
-using RagChatbot.DataAccess.EntityModels;
-using RagChatbot.DataAccess.Repositories;
-using RagChatbot.Business.Services;
-using RagChatbot.Business.Interfaces;
-
 using Microsoft.AspNetCore.Authorization;
-using System.Security.Claims;
+using Microsoft.AspNetCore.SignalR;
+using RagChatbot.Business.Interfaces;
+using RagChatbot.DataAccess.EntityModels;
+using System.Text.Json;
 
 namespace RagChatbot.Presentation.Hubs
 {
     [Authorize]
     public class ChatHub : Hub
     {
-        private readonly IChatSessionRepository _sessionRepo;
-        private readonly IChatMessageRepository _messageRepo;
-        private readonly ISubjectRepository _subjectRepo;
+        private readonly IChatService _chatService;
+        private readonly ISubjectService _subjectService;
         private readonly IVectorSearchService _vectorSearchService;
         private readonly IAiService _aiService;
         private readonly ILogger<ChatHub> _logger;
 
         public ChatHub(
-            IChatSessionRepository sessionRepo,
-            IChatMessageRepository messageRepo,
-            ISubjectRepository subjectRepo,
+            IChatService chatService,
+            ISubjectService subjectService,
             IVectorSearchService vectorSearchService,
             IAiService aiService,
             ILogger<ChatHub> logger)
         {
-            _sessionRepo = sessionRepo;
-            _messageRepo = messageRepo;
-            _subjectRepo = subjectRepo;
+            _chatService = chatService;
+            _subjectService = subjectService;
             _vectorSearchService = vectorSearchService;
             _aiService = aiService;
             _logger = logger;
@@ -49,21 +39,19 @@ namespace RagChatbot.Presentation.Hubs
             try
             {
                 var userId = GetCurrentUserId();
-                var subject = await _subjectRepo.GetByIdAsync(subjectId);
+                var subject = await _subjectService.GetByIdAsync(subjectId);
                 if (subject == null || subject.UserId != userId)
                 {
                     await Clients.Caller.SendAsync("ReceiveError", "Unauthorized subject.");
                     return;
                 }
-                var session = await _sessionRepo.Query()
-                    .Include(s => s.Messages)
-                    .Where(s => s.SubjectId == subjectId)
-                    .OrderByDescending(s => s.CreatedAt)
-                    .FirstOrDefaultAsync();
+
+                var session = await _chatService.GetSessionBySubjectIdAsync(subjectId);
 
                 if (session != null)
                 {
-                    var messages = session.Messages.OrderBy(m => m.Timestamp).Select(m => new
+                    var messagesList = await _chatService.GetSessionMessagesAsync(session.Id);
+                    var messages = messagesList.OrderBy(m => m.Timestamp).Select(m => new
                     {
                         role = m.Role,
                         content = m.Content,
@@ -89,7 +77,7 @@ namespace RagChatbot.Presentation.Hubs
             try
             {
                 var userId = GetCurrentUserId();
-                var subject = await _subjectRepo.GetByIdAsync(subjectId);
+                var subject = await _subjectService.GetByIdAsync(subjectId);
                 if (subject == null || subject.UserId != userId)
                 {
                     await Clients.Caller.SendAsync("ReceiveError", "Unauthorized subject.");
@@ -98,40 +86,34 @@ namespace RagChatbot.Presentation.Hubs
 
                 if (!Guid.TryParse(sessionIdStr, out var sessionId))
                 {
-                    // Create new session if invalid or empty
-                    var session = new ChatSession { SubjectId = subjectId, Title = message.Length > 50 ? message.Substring(0, 50) + "..." : message };
-                    await _sessionRepo.AddAsync(session);
-                    await _sessionRepo.SaveChangesAsync();
+                    var title = message.Length > 50 ? message.Substring(0, 50) + "..." : message;
+                    var session = await _chatService.CreateSessionAsync(subjectId, title);
                     sessionId = session.Id;
                     await Clients.Caller.SendAsync("SessionCreated", sessionId.ToString());
                 }
 
                 // 1. Save user message
-                var userMessage = new ChatMessage
+                var userMessage = new RagChatbot.Business.DTOs.CreateChatMessageDto
                 {
                     SessionId = sessionId,
                     Role = "user",
                     Content = message
                 };
-                await _messageRepo.AddAsync(userMessage);
-                await _messageRepo.SaveChangesAsync();
+                var savedUserMsg = await _chatService.AddMessageAsync(userMessage);
 
                 // 2 & 3. Skip Vector DB Search for simple greetings
                 bool isGreeting = message.Length < 15 && !message.Contains('?');
-                List<DocumentChunk> similarChunks = new List<DocumentChunk>();
+                List<RagChatbot.Business.DTOs.DocumentChunkDto> similarChunks = new List<RagChatbot.Business.DTOs.DocumentChunkDto>();
 
                 if (!isGreeting)
                 {
                     var questionEmbedding = await _aiService.GenerateEmbeddingAsync(message);
-                    
-                    // Filter out invalid IDs (e.g. 0 from NaN in frontend)
+
                     if (documentIds != null)
                     {
                         documentIds = documentIds.Where(id => id > 0).ToList();
                     }
-                    
-                    // Lấy 15 chunks thay vì 5 để tăng khả năng tìm thấy câu trả lời chính xác, 
-                    // đặc biệt với các câu hỏi ngắn dễ bị nhầm lẫn vector do viết hoa/viết thường
+
                     similarChunks = await _vectorSearchService.SearchSimilarChunksAsync(subjectId, questionEmbedding, topK: 15, documentIds: documentIds);
                 }
 
@@ -171,22 +153,15 @@ Tuyệt đối không sử dụng kiến thức bên ngoài để tự bịa câ
 {contextString}
 ";
 
-                // Lấy 10 tin nhắn gần nhất để tạo ngữ cảnh giao tiếp (lịch sử chat), loại trừ tin nhắn hiện tại vừa lưu
-                var history = await _messageRepo.Query()
-                    .Where(x => x.SessionId == sessionId && x.Id != userMessage.Id)
-                    .OrderByDescending(x => x.Timestamp)
-                    .Take(10)
-                    .ToListAsync();
-                
-                history.Reverse(); // Đảo ngược lại để theo đúng thứ tự thời gian cũ -> mới
+                // Lấy 10 tin nhắn gần nhất để tạo ngữ cảnh giao tiếp (lịch sử chat)
+                var history = await _chatService.GetRecentSessionMessagesAsync(sessionId, 10, savedUserMsg.Id);
 
                 // 5. Get Streaming Response
                 var stream = _aiService.GetChatStreamingResponseAsync(systemPrompt, message, history);
 
                 var fullResponse = new System.Text.StringBuilder();
-                
-                // Indicate generation started
-                await Clients.Caller.SendAsync("ReceiveToken", "", false); // trigger UI to create a new message bubble
+
+                await Clients.Caller.SendAsync("ReceiveToken", "", false);
 
                 await foreach (var token in stream)
                 {
@@ -195,26 +170,24 @@ Tuyệt đối không sử dụng kiến thức bên ngoài để tự bịa câ
                 }
 
                 var finalResponseStr = fullResponse.ToString();
-                
-                // Ẩn nguồn tham khảo nếu AI không tìm được câu trả lời để tránh hiển thị nguồn sai lệch
+
                 if (finalResponseStr.Contains("Tôi không tìm được câu trả lời trong tài liệu"))
                 {
                     citationsJson = "[]";
                 }
 
                 // 6. Save Assistant Response
-                var assistantMessage = new ChatMessage
+                var assistantMessage = new RagChatbot.Business.DTOs.CreateChatMessageDto
                 {
                     SessionId = sessionId,
                     Role = "assistant",
                     Content = finalResponseStr,
                     Citations = citationsJson
                 };
-                await _messageRepo.AddAsync(assistantMessage);
-                await _messageRepo.SaveChangesAsync();
+                await _chatService.AddMessageAsync(assistantMessage);
 
                 // 7. Send completion with citations
-                await Clients.Caller.SendAsync("ReceiveToken", citationsJson, true); // true indicates stream ended, pass citations
+                await Clients.Caller.SendAsync("ReceiveToken", citationsJson, true);
             }
             catch (Exception ex)
             {

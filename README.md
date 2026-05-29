@@ -22,18 +22,18 @@
 | Embedding Model | `text-embedding-004` (768 chiều) |
 | Real-time | ASP.NET Core SignalR |
 | File Parsing | `UglyToad.PdfPig` (PDF), `DocumentFormat.OpenXml` (DOCX) |
-| Frontend | Razor Views + Tailwind CSS |
+| Frontend | Razor Views + Tailwind CSS + ViewModels |
+| Data Transfer | Data Transfer Objects (DTOs) |
 
 ## Cấu Trúc Dự Án
 
-```
 RagChatbot.Web/
-├── Controllers/     # HomeController, DocumentController — điều hướng MVC
-├── Models/Entities/ # Subject, Document, DocumentChunk, ChatSession, ChatMessage
-├── Views/           # Razor Views tương ứng với từng Controller
-├── Services/        # AiService, VectorSearchService, DocumentProcessingJob...
+├── Controllers/     # Điều hướng HTTP, nhận ViewModels/DTOs
+├── ViewModels/      # Chứa các model chuyên dụng cho UI (LoginViewModel, DocumentIndexViewModel...)
+├── Views/           # Razor Views (Giao diện HTML/CSS)
 ├── Hubs/            # ChatHub — WebSocket real-time với SignalR
-└── Data/            # ApplicationDbContext (EF Core)
+├── Services/        # (Business Layer) AiService, DocumentService... xử lý logic và DTOs
+└── Data/            # (Data Access Layer) DbContext và các Repositories
 ```
 
 ## Hướng Dẫn Cài Đặt & Khởi Chạy
@@ -77,4 +77,5 @@ Mở trình duyệt tại `http://localhost:5000` (hoặc URL hiển thị trong
 3. Chờ ~10 giây để background job xử lý → Refresh trang → Trạng thái chuyển sang `Indexed`.
 4. Quay lại tab **Chat** → Chọn môn học ở thanh bên trái → Bắt đầu hỏi!
 
-> Xem thêm chi tiết kiến trúc và troubleshooting tại [ARCHITECTURE.md](./ARCHITECTURE.md).
+> Xem chi tiết kiến trúc và tổ chức thư mục tại [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md).
+> Khám phá toàn bộ luồng hoạt động chi tiết (Document Ingestion & RAG Chat Flow) tại [SYSTEM_FLOW_DETAILED.md](./SYSTEM_FLOW_DETAILED.md).

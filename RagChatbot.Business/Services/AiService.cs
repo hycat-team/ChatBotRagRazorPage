@@ -103,7 +103,7 @@ namespace RagChatbot.Business.Services
         }
 #pragma warning restore SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
-        public async IAsyncEnumerable<string> GetChatStreamingResponseAsync(string systemPrompt, string userMessage, IEnumerable<RagChatbot.DataAccess.EntityModels.ChatMessage>? history = null)
+        public async IAsyncEnumerable<string> GetChatStreamingResponseAsync(string systemPrompt, string userMessage, IEnumerable<RagChatbot.Business.DTOs.ChatMessageDto>? history = null)
         {
             var chatHistory = new ChatHistory(systemPrompt);
             

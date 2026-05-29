@@ -12,6 +12,6 @@ namespace RagChatbot.Business.Interfaces
     {
         Task<ReadOnlyMemory<float>> GenerateEmbeddingAsync(string text);
         Task<List<ReadOnlyMemory<float>>> GenerateEmbeddingsAsync(IList<string> texts);
-        IAsyncEnumerable<string> GetChatStreamingResponseAsync(string systemPrompt, string userMessage, IEnumerable<RagChatbot.DataAccess.EntityModels.ChatMessage>? history = null);
+        IAsyncEnumerable<string> GetChatStreamingResponseAsync(string systemPrompt, string userMessage, IEnumerable<RagChatbot.Business.DTOs.ChatMessageDto>? history = null);
     }
 }

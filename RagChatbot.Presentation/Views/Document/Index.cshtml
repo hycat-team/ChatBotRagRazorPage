@@ -1,7 +1,6 @@
-@model IEnumerable<RagChatbot.DataAccess.EntityModels.Document>
+@model RagChatbot.Presentation.ViewModels.DocumentIndexViewModel
 @{
     ViewData["Title"] = "Tài liệu";
-    var subjects = ViewBag.Subjects as IEnumerable<RagChatbot.DataAccess.EntityModels.Subject>;
 }
 
 <div class="flex-1 overflow-y-auto bg-slate-50 dark:bg-slate-950 transition-colors duration-200">
@@ -65,8 +64,8 @@
                         <select name="subjectId" required
                             class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-gray-800 dark:text-slate-100 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200 dark:focus:ring-emerald-500/20 outline-none transition-all">
                             <option value="" disabled selected class="text-slate-400 dark:text-slate-500">-- Chọn môn học --</option>
-                            @if (subjects != null) {
-                                foreach (var s in subjects) {
+                            @if (Model.Subjects != null) {
+                                foreach (var s in Model.Subjects) {
                                     <option value="@s.Id">@s.Code – @s.Name</option>
                                 }
                             }
@@ -91,15 +90,15 @@
         </div>
 
         <!-- ── Subject List ───────────────────────────────────── -->
-        @if (subjects != null && subjects.Any()) {
+        @if (Model.Subjects != null && Model.Subjects.Any()) {
         <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm transition-colors duration-200">
             <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50">
                 <h2 class="text-sm font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
-                    <i class="fa-solid fa-layer-group text-emerald-500 dark:text-emerald-400 text-xs"></i> Môn học (@subjects.Count())
+                    <i class="fa-solid fa-layer-group text-emerald-500 dark:text-emerald-400 text-xs"></i> Môn học (@Model.Subjects.Count())
                 </h2>
             </div>
             <div class="divide-y divide-slate-100 dark:divide-slate-800">
-                @foreach (var s in subjects) {
+                @foreach (var s in Model.Subjects) {
                     <div class="flex items-center gap-4 px-5 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 group transition-colors" id="subject-row-@s.Id">
                         <span class="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0">
                             <i class="fa-solid fa-book text-emerald-600 dark:text-emerald-400 text-xs"></i>
@@ -128,11 +127,11 @@
         <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm transition-colors duration-200">
             <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50">
                 <h2 class="text-sm font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
-                    <i class="fa-solid fa-file-lines text-emerald-500 dark:text-emerald-400 text-xs"></i> Tài liệu (@Model.Count())
+                    <i class="fa-solid fa-file-lines text-emerald-500 dark:text-emerald-400 text-xs"></i> Tài liệu (@Model.Documents.Count())
                 </h2>
             </div>
 
-            @if (!Model.Any()) {
+            @if (!Model.Documents.Any()) {
                 <div class="px-5 py-12 text-center bg-white dark:bg-slate-900">
                     <i class="fa-solid fa-inbox text-slate-300 dark:text-slate-700 text-4xl mb-3"></i>
                     <p class="text-slate-500 dark:text-slate-400 text-sm font-medium">Chưa có tài liệu nào. Hãy upload tài liệu đầu tiên!</p>
@@ -150,7 +149,7 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
-                            @foreach (var doc in Model) {
+                            @foreach (var doc in Model.Documents) {
                                 <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 group transition-colors" id="doc-row-@doc.Id">
                                     <td class="px-5 py-3">
                                         <div class="flex items-center gap-2.5">
