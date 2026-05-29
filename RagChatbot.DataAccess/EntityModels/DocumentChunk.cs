@@ -1,5 +1,4 @@
-using Pgvector;
-
+using System;
 namespace RagChatbot.DataAccess.EntityModels
 {
     public class DocumentChunk
@@ -8,7 +7,7 @@ namespace RagChatbot.DataAccess.EntityModels
         public int DocumentId { get; set; }
         public string Content { get; set; } = string.Empty;
         public int? PageNumber { get; set; }
-        public Vector? Embedding { get; set; } // Represents the pgvector
+        public ReadOnlyMemory<float>? Embedding { get; set; } // Represented as JSON in SQL Server
 
         // Navigation Properties
         public Document? Document { get; set; }

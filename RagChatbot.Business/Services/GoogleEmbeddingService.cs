@@ -9,6 +9,7 @@ using System.Text.Json;
 namespace RagChatbot.Business.Services
 {
 #pragma warning disable SKEXP0001 // Suppress experimental warnings for Semantic Kernel interfaces
+#pragma warning disable CS0618
     public class GoogleEmbeddingService : ITextEmbeddingGenerationService
     {
         private readonly string[] _modelNames;
@@ -18,8 +19,8 @@ namespace RagChatbot.Business.Services
 
         // Google Gemini free tier: 1500 req/min, but batchEmbedContents lets us send 100 texts/request
         private const int BatchSize = 100;
-        private const int MaxRetries = 8;
-        private const int InitialDelayMs = 3000;
+        private const int MaxRetries = 30;
+        private const int InitialDelayMs = 5000;
 
         public GoogleEmbeddingService(string[] modelNames, string[] apiKeys, HttpClient? httpClient = null)
         {
@@ -108,6 +109,7 @@ namespace RagChatbot.Business.Services
                         Console.WriteLine($"[GoogleEmbeddingService] Batch [{batchStart}/{totalCount}] got HTTP {statusCode}. Rotating to next model/key without delay...");
                         continue;
                     }
+
 
                     Console.WriteLine($"[GoogleEmbeddingService] Batch [{batchStart}/{totalCount}] got HTTP {statusCode}. Retry {attempt}/{MaxRetries} in {delayMs / 1000}s...");
                     await Task.Delay(delayMs, cancellationToken);

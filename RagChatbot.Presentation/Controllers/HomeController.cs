@@ -1,33 +1,27 @@
-using RagChatbot.DataAccess.Interfaces;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using RagChatbot.DataAccess.EntityModels;
-using RagChatbot.DataAccess.Repositories;
 using RagChatbot.Business.Services;
 using RagChatbot.Business.Interfaces;
-
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using System.Threading.Tasks;
+using System.Collections.Generic;
 
 namespace RagChatbot.Presentation.Controllers
 {
     [Authorize]
     public class HomeController : Controller
     {
-        private readonly ISubjectRepository _subjectRepo;
-        private readonly IDocumentRepository _docRepo;
-        private readonly IDocumentChunkRepository _chunkRepo;
+        private readonly ISubjectService _subjectService;
+        private readonly IDocumentService _documentService;
         private readonly IGoogleDriveService _driveService;
 
         public HomeController(
-            ISubjectRepository subjectRepo,
-            IDocumentRepository docRepo,
-            IDocumentChunkRepository chunkRepo,
+            ISubjectService subjectService,
+            IDocumentService documentService,
             IGoogleDriveService driveService)
         {
-            _subjectRepo = subjectRepo;
-            _docRepo = docRepo;
-            _chunkRepo = chunkRepo;
+            _subjectService = subjectService;
+            _documentService = documentService;
             _driveService = driveService;
         }
 
@@ -39,17 +33,21 @@ namespace RagChatbot.Presentation.Controllers
                 return RedirectToAction("Login", "Auth");
             }
 
-            var subjects = await _subjectRepo.Query().Where(s => s.UserId == userId).ToListAsync();
-            return View(subjects);
+            var subjects = await _subjectService.GetAllByUserIdAsync(userId);
+            var viewModel = new RagChatbot.Presentation.ViewModels.HomeIndexViewModel
+            {
+                Subjects = subjects
+            };
+            return View(viewModel);
         }
 
         public async Task<IActionResult> TestDb()
         {
-            var docs = await _docRepo.GetAllAsync();
+            var docs = await _documentService.GetAllAsync();
             var results = new List<object>();
             foreach (var d in docs)
             {
-                var chunkCount = await _chunkRepo.Query().CountAsync(c => c.DocumentId == d.Id);
+                var chunkCount = await _documentService.GetChunksByDocumentIdAsync(d.Id);
                 results.Add(new
                 {
                     d.Id,

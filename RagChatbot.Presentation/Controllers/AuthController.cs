@@ -24,19 +24,22 @@ namespace RagChatbot.Presentation.Controllers
             {
                 return RedirectToAction("Index", "Home");
             }
-            ViewData["ReturnUrl"] = returnUrl;
-            return View();
+            return View(new RagChatbot.Presentation.ViewModels.LoginViewModel { ReturnUrl = returnUrl });
         }
 
         [HttpPost]
-        public async Task<IActionResult> Login(string username, string password, string? returnUrl = null)
+        public async Task<IActionResult> Login(RagChatbot.Presentation.ViewModels.LoginViewModel model)
         {
-            var user = await _authService.AuthenticateAsync(username, password);
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            var user = await _authService.AuthenticateAsync(model.Username, model.Password);
             if (user == null)
             {
                 ViewBag.Error = "Tên đăng nhập hoặc mật khẩu không chính xác.";
-                ViewData["ReturnUrl"] = returnUrl;
-                return View();
+                return View(model);
             }
 
             var claims = new List<Claim>
@@ -57,9 +60,9 @@ namespace RagChatbot.Presentation.Controllers
                 new ClaimsPrincipal(claimsIdentity),
                 authProperties);
 
-            if (!string.IsNullOrEmpty(returnUrl) && Url.IsLocalUrl(returnUrl))
+            if (!string.IsNullOrEmpty(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))
             {
-                return Redirect(returnUrl);
+                return Redirect(model.ReturnUrl);
             }
             return RedirectToAction("Index", "Home");
         }

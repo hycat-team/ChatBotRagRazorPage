@@ -138,18 +138,7 @@ namespace RagChatbot.Business.Services
             {
                 _logger.LogError(ex, $"Failed to process document: {document.FileName}");
 
-                // If rate limited (429), reset to Pending so we retry after the delay interval
-                // instead of permanently failing the document
-                bool isRateLimit = ex is HttpRequestException httpEx && ex.Message.Contains("429");
-                if (isRateLimit)
-                {
-                    _logger.LogWarning($"Rate limit hit for '{document.FileName}'. Resetting to Pending to retry later.");
-                    document.Status = "Pending";
-                }
-                else
-                {
-                    document.Status = "Failed";
-                }
+                document.Status = "Failed";
                 docRepo.Update(document);
                 await docRepo.SaveChangesAsync();
             }

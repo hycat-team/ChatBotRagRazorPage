@@ -1,3 +1,4 @@
+@model RagChatbot.Presentation.ViewModels.LoginViewModel
 @{
     Layout = null; // No header/footer for the login page
     ViewData["Title"] = "Đăng nhập";
@@ -117,7 +118,7 @@
 
             <!-- Form -->
             <form asp-action="Login" method="post" class="space-y-5">
-                <input type="hidden" name="returnUrl" value="@ViewData["ReturnUrl"]" />
+                <input type="hidden" asp-for="ReturnUrl" />
                 
                 <div>
                     <label class="block text-sm font-semibold text-gray-700 dark:text-emerald-200 mb-1.5 ml-1">Tài khoản</label>
@@ -125,7 +126,7 @@
                         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-emerald-500 dark:text-emerald-400">
                             <i class="fa-solid fa-user"></i>
                         </div>
-                        <input type="text" name="username" class="input-light w-full rounded-xl py-3 pl-11 pr-4 placeholder-gray-400 dark:placeholder-emerald-600/70" placeholder="Nhập tên đăng nhập..." required />
+                        <input asp-for="Username" class="input-light w-full rounded-xl py-3 pl-11 pr-4 placeholder-gray-400 dark:placeholder-emerald-600/70" placeholder="Nhập tên đăng nhập..." required />
                     </div>
                 </div>
                 
@@ -135,7 +136,7 @@
                         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-emerald-500 dark:text-emerald-400">
                             <i class="fa-solid fa-lock"></i>
                         </div>
-                        <input type="password" name="password" class="input-light w-full rounded-xl py-3 pl-11 pr-4 placeholder-gray-400 dark:placeholder-emerald-600/70" placeholder="Nhập mật khẩu..." required />
+                        <input asp-for="Password" class="input-light w-full rounded-xl py-3 pl-11 pr-4 placeholder-gray-400 dark:placeholder-emerald-600/70" placeholder="Nhập mật khẩu..." required />
                     </div>
                 </div>
                 

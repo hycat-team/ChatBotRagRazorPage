@@ -1,40 +1,35 @@
-using RagChatbot.DataAccess.Interfaces;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using RagChatbot.DataAccess.EntityModels;
-using RagChatbot.DataAccess.Repositories;
 using RagChatbot.Business.Services;
 using RagChatbot.Business.Interfaces;
 
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using System.Linq;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using System;
 
 namespace RagChatbot.Presentation.Controllers
 {
     [Authorize]
     public class DocumentController : Controller
     {
-        private readonly IDocumentRepository _docRepo;
-        private readonly ISubjectRepository _subjectRepo;
-        private readonly IDocumentChunkRepository _chunkRepo;
-        private readonly IChatSessionRepository _sessionRepo;
-        private readonly IChatMessageRepository _messageRepo;
-        private readonly IWebHostEnvironment _env;
+        private readonly IDocumentService _documentService;
+        private readonly ISubjectService _subjectService;
+        private readonly IChatService _chatService;
+        private readonly Microsoft.AspNetCore.Hosting.IWebHostEnvironment _env;
 
         public DocumentController(
-            IDocumentRepository docRepo,
-            ISubjectRepository subjectRepo,
-            IDocumentChunkRepository chunkRepo,
-            IChatSessionRepository sessionRepo,
-            IChatMessageRepository messageRepo,
-            IWebHostEnvironment env)
+            IDocumentService documentService,
+            ISubjectService subjectService,
+            IChatService chatService,
+            Microsoft.AspNetCore.Hosting.IWebHostEnvironment env)
         {
-            _docRepo = docRepo;
-            _subjectRepo = subjectRepo;
-            _chunkRepo = chunkRepo;
-            _sessionRepo = sessionRepo;
-            _messageRepo = messageRepo;
+            _documentService = documentService;
+            _subjectService = subjectService;
+            _chatService = chatService;
             _env = env;
         }
 
@@ -47,12 +42,22 @@ namespace RagChatbot.Presentation.Controllers
         public async Task<IActionResult> Index()
         {
             var userId = GetCurrentUserId();
-            var subjects = await _subjectRepo.Query().Where(s => s.UserId == userId).Include(s => s.Documents).ToListAsync();
+            var subjects = await _subjectService.GetAllByUserIdAsync(userId);
             var subjectIds = subjects.Select(s => s.Id).ToList();
-            var documents = await _docRepo.Query().Where(d => subjectIds.Contains(d.SubjectId)).Include(d => d.Subject).Include(d => d.DocumentChunks).ToListAsync();
             
-            ViewBag.Subjects = subjects;
-            return View(documents);
+            var documents = new List<RagChatbot.Business.DTOs.DocumentDto>();
+            foreach (var subjectId in subjectIds)
+            {
+                var docs = await _documentService.GetBySubjectIdAsync(subjectId);
+                documents.AddRange(docs);
+            }
+            
+            var viewModel = new RagChatbot.Presentation.ViewModels.DocumentIndexViewModel
+            {
+                Documents = documents,
+                Subjects = subjects
+            };
+            return View(viewModel);
         }
 
         [HttpPost]
@@ -63,7 +68,7 @@ namespace RagChatbot.Presentation.Controllers
             [FromServices] ILocalStorageService localStorage)
         {
             var userId = GetCurrentUserId();
-            var subject = await _subjectRepo.GetByIdAsync(subjectId);
+            var subject = await _subjectService.GetByIdAsync(subjectId);
             if (subject == null || subject.UserId != userId)
             {
                 TempData["Error"] = "Invalid subject.";
@@ -100,7 +105,7 @@ namespace RagChatbot.Presentation.Controllers
                 }
             }
 
-            var document = new Document
+            var document = new RagChatbot.Business.DTOs.CreateDocumentDto
             {
                 SubjectId = subjectId,
                 FileName = file.FileName,
@@ -109,8 +114,7 @@ namespace RagChatbot.Presentation.Controllers
                 UploadedAt = DateTime.UtcNow
             };
 
-            await _docRepo.AddAsync(document);
-            await _docRepo.SaveChangesAsync();
+            await _documentService.AddAsync(document);
 
             TempData["Success"] = $"Document uploaded successfully to {storageInfo} and is pending processing.";
             return RedirectToAction(nameof(Index));
@@ -126,8 +130,7 @@ namespace RagChatbot.Presentation.Controllers
             }
 
             var userId = GetCurrentUserId();
-            await _subjectRepo.AddAsync(new Subject { Code = code, Name = name, UserId = userId });
-            await _subjectRepo.SaveChangesAsync();
+            await _subjectService.AddAsync(new RagChatbot.Business.DTOs.CreateSubjectDto { Code = code, Name = name, UserId = userId });
 
             TempData["Success"] = "Subject created.";
             return RedirectToAction(nameof(Index));
@@ -139,11 +142,11 @@ namespace RagChatbot.Presentation.Controllers
         public async Task<IActionResult> RenameSubject(int id, string name)
         {
             var userId = GetCurrentUserId();
-            var subject = await _subjectRepo.GetByIdAsync(id);
+            var subject = await _subjectService.GetByIdAsync(id);
             if (subject == null || subject.UserId != userId) return Json(new { success = false, message = "Subject not found or unauthorized." });
 
             subject.Name = name.Trim();
-            await _subjectRepo.SaveChangesAsync();
+            await _subjectService.UpdateAsync(subject);
             return Json(new { success = true, name = subject.Name });
         }
 
@@ -151,28 +154,13 @@ namespace RagChatbot.Presentation.Controllers
         public async Task<IActionResult> DeleteSubject(int id)
         {
             var userId = GetCurrentUserId();
-            var subject = await _subjectRepo.Query()
-                .Include(s => s.Documents)
-                    .ThenInclude(d => d.DocumentChunks)
-                .Include(s => s.ChatSessions)
-                    .ThenInclude(cs => cs.Messages)
-                .FirstOrDefaultAsync(s => s.Id == id);
+            var subject = await _subjectService.GetByIdAsync(id);
 
             if (subject == null || subject.UserId != userId) return Json(new { success = false, message = "Subject not found or unauthorized." });
 
-            // Cascade: xóa chunks → documents → chat messages → sessions → subject
-            foreach (var doc in subject.Documents)
-                _chunkRepo.RemoveRange(doc.DocumentChunks);
-
-            _docRepo.RemoveRange(subject.Documents);
-
-            foreach (var session in subject.ChatSessions)
-                _messageRepo.RemoveRange(session.Messages);
-
-            _sessionRepo.RemoveRange(subject.ChatSessions);
-            _subjectRepo.Remove(subject);
-
-            await _subjectRepo.SaveChangesAsync();
+            // Note: EF Core cascade delete will handle related documents, chunks, sessions, and messages if configured properly.
+            // If manual cascade is required, it should be implemented in the SubjectService.
+            await _subjectService.DeleteAsync(id);
             return Json(new { success = true });
         }
 
@@ -182,17 +170,14 @@ namespace RagChatbot.Presentation.Controllers
         public async Task<IActionResult> DeleteDocument(int id)
         {
             var userId = GetCurrentUserId();
-            var document = await _docRepo.Query()
-                .Include(d => d.Subject)
-                .Include(d => d.DocumentChunks)
-                .FirstOrDefaultAsync(d => d.Id == id);
+            var document = await _documentService.GetByIdAsync(id);
 
-            if (document == null || document.Subject?.UserId != userId) return Json(new { success = false, message = "Document not found or unauthorized." });
+            if (document == null) return Json(new { success = false, message = "Document not found." });
+            
+            var subject = await _subjectService.GetByIdAsync(document.SubjectId);
+            if (subject == null || subject.UserId != userId) return Json(new { success = false, message = "Document unauthorized." });
 
-            _chunkRepo.RemoveRange(document.DocumentChunks);
-            _docRepo.Remove(document);
-            await _docRepo.SaveChangesAsync();
-
+            await _documentService.DeleteAsync(id);
             return Json(new { success = true });
         }
 
@@ -203,16 +188,17 @@ namespace RagChatbot.Presentation.Controllers
         public async Task<IActionResult> GetSubjectDocuments(int subjectId)
         {
             var userId = GetCurrentUserId();
-            var subject = await _subjectRepo.GetByIdAsync(subjectId);
+            var subject = await _subjectService.GetByIdAsync(subjectId);
             if (subject == null || subject.UserId != userId) return Json(new List<object>());
 
-            var docs = await _docRepo.Query()
-                .Where(d => d.SubjectId == subjectId && d.Status == "Indexed")
+            var docs = await _documentService.GetBySubjectIdAsync(subjectId);
+            var indexedDocs = docs
+                .Where(d => d.Status == "Indexed")
                 .Select(d => new { d.Id, d.FileName, d.UploadedAt })
                 .OrderBy(d => d.FileName)
-                .ToListAsync();
+                .ToList();
 
-            return Json(docs);
+            return Json(indexedDocs);
         }
     }
 }

@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using RagChatbot.DataAccess.EntityModels;
-using Pgvector.EntityFrameworkCore;
-
+using System;
+using System.Text.Json;
 namespace RagChatbot.DataAccess.Data
 {
     public class ApplicationDbContext : DbContext
@@ -22,8 +22,6 @@ namespace RagChatbot.DataAccess.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // Enable pgvector extension
-            modelBuilder.HasPostgresExtension("vector");
 
             // AppUser
             modelBuilder.Entity<AppUser>()
@@ -41,15 +39,14 @@ namespace RagChatbot.DataAccess.Data
                 .HasForeignKey(s => s.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // DocumentChunk
+            // DocumentChunk Embedding Mapping
             modelBuilder.Entity<DocumentChunk>()
                 .Property(c => c.Embedding)
-                .HasColumnType("vector(768)"); // gemini-embedding-001 / text-embedding-004 dimensions
-
-            modelBuilder.Entity<DocumentChunk>()
-                .HasIndex(c => c.Embedding)
-                .HasMethod("hnsw")
-                .HasOperators("vector_cosine_ops");
+                .HasConversion(
+                    v => v.HasValue ? JsonSerializer.Serialize(v.Value.ToArray(), (JsonSerializerOptions?)null) : null,
+                    v => v != null ? new ReadOnlyMemory<float>(JsonSerializer.Deserialize<float[]>(v, (JsonSerializerOptions?)null)!) : null
+                )
+                .HasColumnType("nvarchar(max)"); // Store as JSON string in SQL Server
 
             // Data Seeding
             // Hash passwords using SHA256 for simplicity in DAL

@@ -1,4 +1,4 @@
-@model IEnumerable<RagChatbot.DataAccess.EntityModels.Subject>
+@model RagChatbot.Presentation.ViewModels.HomeIndexViewModel
 @{
     ViewData["Title"] = "Chat";
 }
@@ -12,7 +12,7 @@
         </div>
 
         <div class="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
-            @foreach (var subject in Model)
+            @foreach (var subject in Model.Subjects)
             {
                 <div class="topic-item group flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer"
                      data-id="@subject.Id" data-name="@subject.Name"
