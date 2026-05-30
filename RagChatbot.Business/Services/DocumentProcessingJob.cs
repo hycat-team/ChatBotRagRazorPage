@@ -9,6 +9,7 @@ using System.IO;
 using RagChatbot.DataAccess.EntityModels;
 using RagChatbot.Business.Interfaces;
 using RagChatbot.DataAccess.Repositories;
+using Pgvector;
 
 namespace RagChatbot.Business.Services
 {
@@ -123,7 +124,7 @@ namespace RagChatbot.Business.Services
                         DocumentId = document.Id,
                         Content = allChunks[i].Text,
                         PageNumber = allChunks[i].PageNumber,
-                        Embedding = embeddings[i]
+                        Embedding = new Vector(embeddings[i].ToArray())
                     };
                     await chunkRepo.AddAsync(documentChunk);
                 }

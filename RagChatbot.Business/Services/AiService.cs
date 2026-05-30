@@ -118,10 +118,13 @@ namespace RagChatbot.Business.Services
             
             chatHistory.AddUserMessage(userMessage);
 
-            var executionSettings = new OpenAIPromptExecutionSettings
+            var executionSettings = new PromptExecutionSettings
             {
-                MaxTokens = 1000,
-                Temperature = 0.2
+                ExtensionData = new Dictionary<string, object>
+                {
+                    { "max_tokens", 1000 },
+                    { "temperature", 0.2 }
+                }
             };
 
             var stream = _chatCompletion.GetStreamingChatMessageContentsAsync(chatHistory, executionSettings, _kernel);

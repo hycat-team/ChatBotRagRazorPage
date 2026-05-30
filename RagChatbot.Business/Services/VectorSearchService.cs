@@ -7,8 +7,9 @@ using RagChatbot.DataAccess.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Numerics.Tensors;
 using System.Threading.Tasks;
+using Pgvector;
+using Pgvector.EntityFrameworkCore;
 
 namespace RagChatbot.Business.Services
 {
@@ -41,16 +42,15 @@ namespace RagChatbot.Business.Services
                 query = query.Where(c => documentIds.Contains(c.DocumentId));
             }
 
-            var allChunks = await query.ToListAsync();
+            var pgQueryVector = new Vector(queryEmbedding.ToArray());
 
-            var chunks = allChunks
-                .Where(c => c.Embedding.HasValue)
-                .OrderByDescending(c => TensorPrimitives.CosineSimilarity(c.Embedding!.Value.Span, queryEmbedding.Span))
+            var chunks = await query
+                .Where(c => c.Embedding != null)
+                .OrderBy(c => c.Embedding!.CosineDistance(pgQueryVector))
                 .Take(topK)
-                .Select(c => c.ToDto()!)
-                .ToList();
+                .ToListAsync();
 
-            return chunks;
+            return chunks.Select(c => c.ToDto()!).ToList();
         }
     }
 }

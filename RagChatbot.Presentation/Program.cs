@@ -7,18 +7,34 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using RagChatbot.DataAccess.Interfaces;
 using RagChatbot.DataAccess.EntityModels;
 using RagChatbot.Business.Interfaces;
+
 var builder = WebApplication.CreateBuilder(args);
-
-
+// Load .env file if it exists
+var envPath1 = Path.Combine(Directory.GetCurrentDirectory(), ".env");
+var envPath2 = Path.Combine(Directory.GetCurrentDirectory(), "..", ".env");
+if (File.Exists(envPath1))
+{
+    DotNetEnv.Env.Load(envPath1);
+}
+else if (File.Exists(envPath2))
+{
+    DotNetEnv.Env.Load(envPath2);
+}
+else
+{
+    DotNetEnv.Env.Load(); // Try to load from current directory fallback
+}
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
 // Setup DbContext
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+                     ?? Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
-    options.UseSqlServer(connectionString);
+    options.UseNpgsql(connectionString, o => o.UseVector());
 });
 
 // Add SignalR

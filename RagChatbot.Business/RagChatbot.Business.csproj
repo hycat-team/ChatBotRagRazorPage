@@ -20,6 +20,7 @@
     <PackageReference Include="Microsoft.Extensions.VectorData.Abstractions" Version="10.6.0" />
     <PackageReference Include="Microsoft.SemanticKernel" Version="1.76.0" />
     <PackageReference Include="Microsoft.SemanticKernel.Connectors.Google" Version="1.76.0-alpha" />
+    <PackageReference Include="Pgvector.EntityFrameworkCore" Version="0.2.2" />
     <PackageReference Include="UglyToad.PdfPig" Version="1.7.0-custom-5" />
   </ItemGroup>
 
