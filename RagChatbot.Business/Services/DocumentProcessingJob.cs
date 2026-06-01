@@ -99,16 +99,64 @@ namespace RagChatbot.Business.Services
                     if (File.Exists(tempFile)) File.Delete(tempFile);
                 }
 
-                // Step 1: Extract all text chunks from all pages
-                var allChunks = new List<(int PageNumber, string Text)>();
-                foreach (var page in pages)
+                // Pre-process pages to ensure no sentences are cut at page boundaries
+                var pageList = pages.OrderBy(p => p.PageNumber).ToList();
+                for (int i = 0; i < pageList.Count - 1; i++)
                 {
-                    var chunks = await chunkingService.ChunkTextAsync(page.Text);
-                    foreach (var chunkText in chunks)
+                    var currentText = pageList[i].Text ?? "";
+                    var nextText = pageList[i + 1].Text ?? "";
+                    
+                    if (string.IsNullOrWhiteSpace(currentText)) continue;
+                    // Find the last true sentence boundary while skipping periods inside numbers
+                    int lastBoundary = -1;
+                    for (int j = currentText.Length - 1; j >= 0; j--)
                     {
-                        allChunks.Add((PageNumber: page.PageNumber, Text: chunkText));
+                        char c = currentText[j];
+                        if (c == '?' || c == '!' || c == '\n')
+                        {
+                            lastBoundary = j;
+                            break;
+                        }
+                        if (c == '.')
+                        {
+                            // Skip this period if it resides between two digits (numeric separator)
+                            bool prevIsDigit = j > 0 && char.IsDigit(currentText[j - 1]);
+                            bool nextIsDigit = j < currentText.Length - 1 && char.IsDigit(currentText[j + 1]);
+                            if (prevIsDigit && nextIsDigit)
+                            {
+                                continue;
+                            }
+                            lastBoundary = j;
+                            break;
+                        }
+                    }
+                    
+                    if (lastBoundary >= 0 && lastBoundary < currentText.Length - 1)
+                    {
+                        string carryOver = currentText.Substring(lastBoundary + 1);
+                        
+                        // Only carry over if it's a partial sentence (less than 500 chars)
+                        if (carryOver.Length < 500)
+                        {
+                            pageList[i].Text = currentText.Substring(0, lastBoundary + 1).TrimEnd();
+                            pageList[i + 1].Text = carryOver.TrimStart() + " " + nextText.TrimStart();
+                        }
                     }
                 }
+
+                // Step 1: Extract all text chunks from all pages concurrently
+                var allChunksBag = new System.Collections.Concurrent.ConcurrentBag<(int PageNumber, int ChunkIndex, string Text)>();
+                
+                await Parallel.ForEachAsync(pageList, new ParallelOptions { MaxDegreeOfParallelism = 2, CancellationToken = stoppingToken }, async (page, ct) =>
+                {
+                    var chunks = await chunkingService.ChunkTextAsync(page.Text);
+                    for (int i = 0; i < chunks.Count; i++)
+                    {
+                        allChunksBag.Add((PageNumber: page.PageNumber, ChunkIndex: i, Text: chunks[i]));
+                    }
+                });
+
+                var allChunks = allChunksBag.OrderBy(c => c.PageNumber).ThenBy(c => c.ChunkIndex).Select(c => (c.PageNumber, c.Text)).ToList();
 
                 _logger.LogInformation($"Extracted {allChunks.Count} chunks. Starting batch embedding...");
 

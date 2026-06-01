@@ -1,158 +1,66 @@
-using RagChatbot.Business.Interfaces;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
-using Microsoft.AspNetCore.Hosting;
-using System.Text.Json;
-using System.Text;
-using System.Collections.Generic;
+#pragma warning disable SKEXP0050
 using System;
+using System.Collections.Generic;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
+using Microsoft.SemanticKernel.Text;
+using RagChatbot.Business.Interfaces;
 
 namespace RagChatbot.Business.Services
 {
     public class TextChunkingService : ITextChunkingService
     {
-        private readonly IAiService _aiService;
         private readonly ILogger<TextChunkingService> _logger;
 
-        public TextChunkingService(IAiService aiService, ILogger<TextChunkingService> logger)
+        public TextChunkingService(ILogger<TextChunkingService> logger)
         {
-            _aiService = aiService;
             _logger = logger;
         }
 
-        public async Task<List<string>> ChunkTextAsync(string text, int maxChunkSize = 1000, int overlap = 200)
+        public Task<List<string>> ChunkTextAsync(string rawText, int maxChunkSize = 400, int overlap = 50)
         {
-            var chunks = new List<string>();
-            if (string.IsNullOrWhiteSpace(text)) return chunks;
+            if (string.IsNullOrWhiteSpace(rawText)) return Task.FromResult(new List<string>());
 
-            try
+            // Clean repeating layout noise and remove global structural artifacts
+            string cleanedText = Regex.Replace(rawText, @"NGUYÊN LÝ KẾ TOÁN\s*\.\s*", " ");
+
+            // Capture and collapse all formatting spaces or layout newlines around numeric periods
+            while (Regex.IsMatch(cleanedText, @"(\d+)\s*\.\s*(\d+)"))
             {
-                string systemPrompt = $@"SYSTEM PROMPT: SEMANTIC TEXT CHUNKING ENGINE
-
-[ROLE]
-You are a precise data engineering assistant specialized in text segmentation for RAG systems. Your task is to split the input Vietnamese text into a JSON array of clean, logically complete chunks.
-
-[CRITICAL BOUNDARY CONSTRAINTS]
-- ABSOLUTE WORD INTEGRITY: Never split a word across chunk boundaries. Every chunk must start and end with a complete, fully-formed word.
-- SENTENCE BOUNDARY RULE: A chunk must only end at a valid sentence-ending punctuation mark, such as a period, question mark, or exclamation mark. Do not terminate a chunk mid-sentence.
-- HEADER AND TITLE ISOLATION: When encountering markdown headers or bold titles, do not fuse them with the subsequent paragraph. Ensure there is a clean line break separating structural titles from body text.
-- SMART SEMANTIC OVERLAP: For context continuity, each subsequent chunk must include an overlap consisting of the last one or two full sentences from the preceding chunk. This overlap must begin exactly at the start of a sentence, never mid-word.
-
-[FORMAT SPECIFICATION]
-Return only a raw, valid JSON array of strings. Do not include markdown formatting or wrapping like triple backticks. Do not append any sequential indicators or tracking numbers inside the text of the chunks.";
-
-                string userMessage = $"[INPUT DATA]\nText_To_Process: \"\"\"{text}\"\"\"";
-
-                var responseStream = _aiService.GetChatStreamingResponseAsync(systemPrompt, userMessage);
-                var stringBuilder = new StringBuilder();
-
-                await foreach (var content in responseStream)
-                {
-                    stringBuilder.Append(content);
-                }
-
-                string jsonResponse = stringBuilder.ToString().Trim();
-
-                // Clean up possible markdown wrappers
-                if (jsonResponse.StartsWith("```json", StringComparison.OrdinalIgnoreCase))
-                {
-                    jsonResponse = jsonResponse.Substring(7);
-                }
-                else if (jsonResponse.StartsWith("```", StringComparison.OrdinalIgnoreCase))
-                {
-                    jsonResponse = jsonResponse.Substring(3);
-                }
-
-                if (jsonResponse.EndsWith("```"))
-                {
-                    jsonResponse = jsonResponse.Substring(0, jsonResponse.Length - 3);
-                }
-
-                jsonResponse = jsonResponse.Trim();
-
-                var options = new JsonSerializerOptions
-                {
-                    ReadCommentHandling = JsonCommentHandling.Skip,
-                    AllowTrailingCommas = true
-                };
-
-                var result = JsonSerializer.Deserialize<List<string>>(jsonResponse, options);
-                if (result != null && result.Count > 0)
-                {
-                    return result;
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "LLM Chunking failed or returned invalid JSON. Falling back to default algorithm.");
+                cleanedText = Regex.Replace(cleanedText, @"(\d+)\s*\.\s*(\d+)", "$1ALPHANUMERICDOTMASK$2");
             }
 
-            return FallbackChunkText(text, maxChunkSize, overlap);
-        }
+            // Isolate markdown bold tag boundaries from word tokens
+            cleanedText = cleanedText.Replace("**", " ** ");
 
-        private List<string> FallbackChunkText(string text, int maxChunkSize, int overlap)
-        {
-            var chunks = new List<string>();
-            int i = 0;
-            while (i < text.Length)
+            // Segment sanitized layout text into atomic lines without breaking commas
+            var lines = TextChunker.SplitPlainTextLines(cleanedText, maxTokensPerLine: 350);
+
+            // Group standalone lines into paragraph data payloads with continuous overlap
+            var rawParagraphs = TextChunker.SplitPlainTextParagraphs(lines, maxChunkSize, overlap);
+
+            // Reassemble ordered collection and decode hidden mask values
+            var finalizedChunks = new List<string>();
+            
+            foreach (var paragraph in rawParagraphs)
             {
-                var length = Math.Min(maxChunkSize, text.Length - i);
+                // Revert masking strings back to standard numerical dots
+                string restoredText = paragraph.Replace("ALPHANUMERICDOTMASK", ".").Trim();
                 
-                // End of chunk logic: try to end at a sentence boundary, or at least a space
-                if (i + length < text.Length)
+                // Clean up accidental trailing fragments if they end with headers
+                if (Regex.IsMatch(restoredText, @"\*\*\s*[^*]+\s*\*\*\s*$"))
                 {
-                    int lastPunc = text.LastIndexOfAny(new[] { '.', '?', '!', '\n' }, i + length - 1, length);
-                    if (lastPunc > i && lastPunc > i + (length / 2)) 
-                    {
-                        length = lastPunc - i + 1;
-                    }
-                    else
-                    {
-                        var lastSpace = text.LastIndexOf(' ', i + length - 1, length);
-                        if (lastSpace > i)
-                        {
-                            length = lastSpace - i;
-                        }
-                    }
+                    restoredText = Regex.Replace(restoredText, @"\*\*\s*[^*]+\s*\*\*\s*$", "").Trim();
                 }
 
-                chunks.Add(text.Substring(i, length).Trim());
-                
-                if (i + length >= text.Length)
+                if (!string.IsNullOrEmpty(restoredText))
                 {
-                    break;
+                    finalizedChunks.Add(restoredText);
                 }
-                
-                // Calculate next chunk start index with overlap
-                var nextI = i + length - overlap;
-                if (nextI <= i)
-                {
-                    break; // Prevent infinite loop
-                }
-
-                // Make sure nextI doesn't start mid-word. Try to start at a sentence boundary.
-                int puncBeforeNextI = text.LastIndexOfAny(new[] { '.', '?', '!', '\n' }, nextI, nextI - i);
-                if (puncBeforeNextI > i)
-                {
-                    nextI = puncBeforeNextI + 1;
-                    // Skip any leading whitespace for the new chunk start
-                    while (nextI < text.Length && char.IsWhiteSpace(text[nextI])) nextI++;
-                }
-                else
-                {
-                    var spaceBeforeNextI = text.LastIndexOf(' ', nextI, nextI - i);
-                    if (spaceBeforeNextI > i) 
-                    {
-                        nextI = spaceBeforeNextI + 1;
-                    }
-                }
-
-                i = nextI;
             }
 
-            return chunks;
+            return Task.FromResult(finalizedChunks);
         }
     }
 }

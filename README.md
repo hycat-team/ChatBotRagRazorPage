@@ -5,7 +5,7 @@
 ## Tính Năng Nổi Bật
 
 - **Quản lý Môn học & Tài liệu:** Tạo môn học và upload PDF/DOCX vào từng môn.
-- **Xử lý Ngầm (Background Job):** Tài liệu tải lên được tự động trích xuất, chia nhỏ (Text Chunking) và mã hoá thành vector trong nền.
+- **Xử lý Ngầm (Background Job):** Tài liệu tải lên được tự động trích xuất, chia nhỏ (Local Semantic Chunking) và mã hoá thành vector trong nền. Hệ thống chunking sử dụng thuật toán masking `ALPHANUMERICDOTMASK` để bảo toàn 100% tính toàn vẹn các con số tài chính/kế toán (ví dụ: `43.000`, `10.000.000`).
 - **Vector Search:** Mỗi chunk được embedding thành vector 768 chiều lưu trong PostgreSQL (`pgvector`), tìm kiếm bằng Cosine Similarity với HNSW Index.
 - **Realtime Streaming Chat:** Dùng **SignalR** để stream từng token phản hồi của AI về giao diện (giống ChatGPT).
 - **Trích Dẫn Thông Minh (Citations):** Cuối mỗi câu trả lời, Bot chỉ rõ tên file và số trang đã dùng làm ngữ cảnh.
@@ -22,6 +22,7 @@
 | Embedding Model | `text-embedding-004` (768 chiều) |
 | Real-time | ASP.NET Core SignalR |
 | File Parsing | `UglyToad.PdfPig` (PDF), `DocumentFormat.OpenXml` (DOCX) |
+| Text Chunking | `Microsoft.SemanticKernel.Text.TextChunker` + Custom Numeric Masking |
 | Frontend | Razor Views + Tailwind CSS + ViewModels |
 | Data Transfer | Data Transfer Objects (DTOs) |
 
@@ -74,6 +75,15 @@ Mở trình duyệt tại `http://localhost:5000` (hoặc URL hiển thị trong
 2. Upload file PDF/DOCX cho môn học. Trạng thái ban đầu là `Pending`.
 3. Chờ ~10 giây để background job xử lý → Refresh trang → Trạng thái chuyển sang `Indexed`.
 4. Quay lại tab **Chat** → Chọn môn học ở thanh bên trái → Bắt đầu hỏi!
+
+## Điểm Nổi Bật Kỹ Thuật (Technical Highlights)
+
+### Hệ thống Chunking thông minh hai lớp bảo vệ
+
+Dự án triển khai cơ chế **hai lớp bảo vệ** cho tính toàn vẹn dữ liệu số:
+
+1. **Lớp 1 — Page Boundary Protection (`DocumentProcessingJob.cs`):** Khi ghép nối text giữa các trang, thuật toán quét ngược tìm ranh giới câu nhưng **tự động bỏ qua** các dấu chấm nằm giữa hai chữ số (ví dụ: dấu `.` trong `43.000`), chỉ cắt tại dấu chấm câu thật sự.
+2. **Lớp 2 — Token Masking (`TextChunkingService.cs`):** Trước khi đưa vào Sentence Splitter, mọi dấu chấm giữa các chữ số (kể cả bị xen kẽ whitespace/newline do extractor tạo ra) đều được thay thế bằng mask `ALPHANUMERICDOTMASK`. Vòng lặp `while` đảm bảo xử lý triệt để số nhiều dấu chấm như `10.000.000`. Mask được khôi phục lại sau khi chunking hoàn tất.
 
 > Xem chi tiết kiến trúc và tổ chức thư mục tại [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md).
 > Khám phá toàn bộ luồng hoạt động chi tiết (Document Ingestion & RAG Chat Flow) tại [SYSTEM_FLOW_DETAILED.md](./SYSTEM_FLOW_DETAILED.md).

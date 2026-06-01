@@ -1,6 +1,6 @@
 # Tài Liệu Mô Tả Luồng Xử Lý RAG (Retrieval-Augmented Generation)
 
-Tài liệu này chi tiết hóa luồng xử lý của hệ thống ChatBot RAG khi người dùng tương tác trên giao diện: chọn môn học (đổi tài liệu), tùy chỉnh các file lọc, và gửi câu hỏi (prompt).
+Tài liệu này chi tiết hóa luồng xử lý của hệ thống ChatBot RAG khi người dùng tương tác trên giao diện: chọn môn học (đổi tài liệu), tùy chỉnh các file lọc, và gửi câu hỏi (prompt). Hệ thống được trang bị cơ chế **hai lớp bảo vệ số liệu** (Page Boundary Protection + Token Masking) đảm bảo không có con số tài chính nào bị cắt ngang.
 
 ---
 
@@ -91,7 +91,7 @@ Khi người dùng nhấn chọn một môn học bất kỳ từ danh sách Sid
      ```
      GET /Document/GetSubjectDocuments?subjectId={subjectId}
      ```
-     API trả về danh sách toàn bộ các file tài liệu đã được chỉ mục hóa (indexed) thành công trong môn học đó.
+     API trả về danh sách toàn bộ các file tài liệu đã được chỉ mục hóa (indexed) thành công trong môn học đó. Mỗi file đã trải qua quy trình chunking hai lớp bảo vệ: (1) Page Boundary Protection bỏ qua dấu chấm số, (2) `ALPHANUMERICDOTMASK` masking đảm bảo số liệu kế toán nguyên vẹn.
      * **Sidebar phải (`#docFilterPanel`)** xuất hiện và vẽ danh sách checkbox tương ứng với các file.
      * Mặc định ban đầu, **tất cả** checkbox tài liệu đều được tích chọn (`checked`).
 

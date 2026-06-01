@@ -18,8 +18,9 @@ CHATBOTRAG
 │   └── Program.cs             (Nơi cấu hình Middleware, Dependency Injection)
 │
 ├── RagChatbot.Business/       (Tầng Xử Lý Nghiệp Vụ - Logic Layer)
-│   ├── Interfaces/            (Định nghĩa hợp đồng cho các Service: IDocumentService...)
-│   └── Services/              (Thực thi Logic: ChatService, AiService, VectorSearchService...)
+│   ├── Interfaces/            (Định nghĩa hợp đồng: IDocumentService, ITextChunkingService...)
+│   └── Services/              (Thực thi Logic: ChatService, AiService, TextChunkingService,
+│                                DocumentProcessingJob, VectorSearchService...)
 │
 └── RagChatbot.DataAccess/     (Tầng Truy Xuất Dữ Liệu - Data Access Layer)
     ├── Data/                  (ApplicationDbContext: Cấu hình Entity Framework Core)
@@ -93,9 +94,10 @@ graph TD
 
 1. **Người dùng** thao tác trên trình duyệt (Upload file, gửi tin nhắn).
 2. Yêu cầu được gửi đến **Controllers** (nếu upload) hoặc **ChatHub** (nếu chat).
-3. Controllers/Hub không tự xử lý mà gọi xuống **Tầng Business** (ví dụ: `IDocumentService`, `IAiService`) để thực thi logic nghiệp vụ.
-4. Nếu Tầng Business cần đọc/ghi dữ liệu, nó sẽ gọi xuống **Tầng Data Access** thông qua các `Repository`. Tầng Data Access sẽ dùng Entity Framework Core để biến đổi code thành lệnh SQL chạy trên PostgreSQL.
-5. Nếu Tầng Business cần xử lý AI hoặc lưu trữ Cloud, nó sẽ gọi ra các API bên ngoài như Google AI Studio hoặc Google Drive.
+3. Controllers/Hub không tự xử lý mà gọi xuống **Tầng Business** (ví dụ: `IDocumentService`, `IAiService`, `ITextChunkingService`) để thực thi logic nghiệp vụ.
+4. **Xử lý Chunking thông minh:** `DocumentProcessingJob` điều phối quy trình xử lý tài liệu ngầm. Khi ghép nối text giữa các trang, nó dùng thuật toán quét ngược thông minh bỏ qua dấu chấm số (numeric period) để tránh cắt ngang các con số tài chính. Sau đó, `TextChunkingService` mask toàn bộ dấu chấm giữa chữ số bằng `ALPHANUMERICDOTMASK` trước khi chia nhỏ, đảm bảo tính toàn vẹn 100% cho các số như `43.000` hay `10.000.000`.
+5. Nếu Tầng Business cần đọc/ghi dữ liệu, nó sẽ gọi xuống **Tầng Data Access** thông qua các `Repository`. Tầng Data Access sẽ dùng Entity Framework Core để biến đổi code thành lệnh SQL chạy trên PostgreSQL.
+6. Nếu Tầng Business cần xử lý AI hoặc lưu trữ Cloud, nó sẽ gọi ra các API bên ngoài như Google AI Studio hoặc Google Drive.
 
 ## 3. Kiến Trúc Giao Tiếp Mức Cao (High-level Communication Flow)
 

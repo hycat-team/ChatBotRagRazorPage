@@ -142,7 +142,7 @@ namespace RagChatbot.Business.Services
             {
                 ExtensionData = new Dictionary<string, object>
                 {
-                    { "max_tokens", 4000 },
+                    { "max_tokens", 2048 },
                     { "temperature", 0.2 }
                 }
             };
