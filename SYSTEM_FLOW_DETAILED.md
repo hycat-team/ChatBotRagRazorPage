@@ -55,35 +55,44 @@ Khi người dùng nhắn tin (đặt câu hỏi), luồng sau sẽ diễn ra:
 *   **Thành phần:** `ChatHub` -> `IChatService`
 *   **Hoạt động:** Tin nhắn của User được lưu vào DB (`ChatMessage`) với Role là `User`. 
 
-### Bước 3: Đánh giá câu hỏi (Vector Search)
+### Bước 3: Tiền xử lý & Cấu trúc Truy vấn (Bypass Rewrite Query)
+*   **Thành phần:** `IAiService` (Query Rewriting)
+*   **Hoạt động:**
+    1.  **Lấy bối cảnh:** Trích xuất 3 tin nhắn gần nhất từ lịch sử trò chuyện để sử dụng nếu cần thiết.
+    2.  **Viết lại câu hỏi (Đã vô hiệu hóa):** Để tiết kiệm token LLM, hệ thống hiện tại **bỏ qua bước viết lại câu hỏi**. Câu hỏi gốc của người dùng được sử dụng trực tiếp làm Standalone Query.
+    3.  **Lọc câu chào hỏi:** Nếu câu hỏi chỉ là câu chào ngắn gọn (vd: "chào bạn"), hệ thống tự động trả lời bằng code mà không cần RAG hay LLM.
+
+### Bước 4: Đánh giá & Lọc dữ liệu (Vector Search)
 *   **Thành phần:** `IAiService` (Embedding) và `IVectorSearchService` (Tìm kiếm)
 *   **Hoạt động:**
-    1.  **Embed Câu hỏi:** Câu hỏi của người dùng ("Trí tuệ nhân tạo là gì?") được gửi qua Google AI để biến thành một Vector 768 chiều.
-    2.  **Tìm kiếm độ tương đồng (Cosine Similarity):** Vector câu hỏi được đưa xuống PostgreSQL. Extension `pgvector` sử dụng index HNSW để so sánh Vector câu hỏi với HÀNG NGÀN Vector của các DocumentChunks đã lưu trong môn học đó (được filter theo `selectedDocs`).
-    3.  **Lấy Top K:** PostgreSQL trả về Top 5 hoặc Top 10 đoạn văn bản (chunks) có ý nghĩa tương đồng nhất với câu hỏi.
+    1.  **Embed Câu hỏi:** Standalone Query được biến thành một Vector 768 chiều.
+    2.  **Pre-filtering & Similarity:** Vector câu hỏi được đưa xuống PostgreSQL. Extension `pgvector` sử dụng HNSW index so sánh với các DocumentChunks, đồng thời áp dụng màng lọc cứng `WHERE DocumentId IN (selectedDocs)`.
+    3.  **Lấy Top K:** PostgreSQL trả về Top các đoạn văn bản (chunks) tương đồng nhất.
 
-### Bước 4: Tạo Prompt Ngữ Cảnh (Augmented Generation)
+### Bước 5: Kiểm soát rủi ro & Tạo Prompt (Zero Hallucination & Grounding)
 *   **Thành phần:** `IChatService`
-*   **Hoạt động:** Service kết hợp các đoạn văn bản (Top K chunks) tìm được cùng với lịch sử chat cũ và câu hỏi hiện tại để tạo ra một System Prompt hoàn chỉnh. 
-    *   *Mẫu Prompt:* "Bạn là trợ lý AI. Dựa vào NGỮ CẢNH sau đây, hãy trả lời câu hỏi. Nếu ngữ cảnh không có thông tin, hãy nói Không biết. Ngữ cảnh: [Chunk 1], [Chunk 2]..."
+*   **Hoạt động:** 
+    *   **ZERO_HALLUCINATION_POLICY:** Nếu không có chunk nào tương đồng, hệ thống không gọi LLM sinh văn bản mà trả về ngay câu Fallback: *"Hệ thống không tìm thấy thông tin trong các tài liệu đã chọn"*.
+    *   **GROUNDING_RULE:** Bơm các chunks tìm được vào ngữ cảnh. Ép LLM chỉ được phép trả lời dựa trên những chunks này.
 
-### Bước 5: Sinh câu trả lời (LLM Streaming)
-*   **Thành phần:** `IAiService` -> Google AI Studio (`gemini-1.5-flash`)
+### Bước 6: Sinh câu trả lời (LLM Streaming, Retry & Isolation Rule)
+*   **Thành phần:** `IAiService` -> Google AI Studio
 *   **Hoạt động:**
-    *   Prompt khổng lồ được gửi đến mô hình LLM.
-    *   LLM xử lý và trả về câu trả lời **từng phần một (streaming)**.
+    *   **ISOLATION_RULE:** Tách biệt hoàn toàn lịch sử chat (`history = null`) khỏi bước sinh văn bản cuối cùng để tránh hiện tượng Data Leakage (AI học lỏm kiến thức từ chat history).
+    *   **Cơ chế Retry (Kháng lỗi):** LLM xử lý Standalone Query dựa trên ngữ cảnh được cấp. Nếu API của Google trả về lỗi 500, 429 hoặc trả về văn bản rỗng, hệ thống sẽ **tự động gọi lại (Retry) tối đa 3 lần** trước khi bỏ cuộc.
+    *   LLM stream trả về từng token.
 
-### Bước 6: Đẩy dữ liệu về Giao diện (Real-time Streaming)
+### Bước 7: Đẩy dữ liệu về Giao diện & Dừng tạo (Real-time Streaming & Pause)
 *   **Thành phần:** `ChatHub` -> UI
 *   **Hoạt động:** 
-    *   Mỗi khi LLM sinh ra một vài từ (token), `ChatHub` sẽ gửi ngay lập tức tín hiệu `ReceiveToken` về giao diện.
+    *   Mỗi khi LLM sinh ra một token, `ChatHub` gửi ngay lập tức tín hiệu `ReceiveToken` về giao diện.
     *   Giao diện hiển thị chữ chạy giống hệt ChatGPT mà không cần đợi load xong toàn bộ.
+    *   **Dừng tạo (Pause):** Tại bất kỳ thời điểm nào, người dùng có thể bấm nút "Dừng tạo". SignalR sẽ gửi lệnh hủy thông qua `CancellationToken`, ngắt ngay lập tức tiến trình stream từ API của Google, lưu trữ câu trả lời dang dở và báo *"(Đã dừng tạo)"*.
 
-### Bước 7: Xử lý Trích dẫn & Lưu trữ
+### Bước 8: Xử lý Trích dẫn & Lưu trữ (Citation Injection)
 *   **Thành phần:** `IChatService` -> `ChatHub`
 *   **Hoạt động:**
-    *   Khi AI hoàn tất câu trả lời, hệ thống kiểm tra xem nó đã dùng Chunk nào để trả lời. 
-    *   Đóng gói thông tin trích dẫn (Tên file, Số trang, Trích đoạn).
+    *   Bắt buộc đính kèm Metadata (Tên file, Index trang) vào các node thông tin trả về.
     *   Lưu toàn bộ tin trả lời của AI cùng JSON trích dẫn vào database với Role là `Model`.
     *   Gửi tín hiệu kết thúc về giao diện kèm theo danh sách trích dẫn để hiển thị.
 

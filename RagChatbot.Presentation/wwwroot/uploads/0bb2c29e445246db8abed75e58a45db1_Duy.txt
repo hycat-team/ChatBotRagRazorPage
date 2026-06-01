@@ -1,0 +1,5 @@
+Xin chào, mình là Duy, năm nay mình 28 tuổi. 
+Hiện tại, mình đang làm công việc Kỹ sư dữ liệu (Data Engineer) tại một công ty công nghệ. 
+Mình sinh ra và lớn lên ở Nam Định, nhưng hiện đang sinh sống và làm việc tại Quận Cầu Giấy, Hà Nội. 
+Trong thời gian rảnh rỗi, mình thường hay nghiên cứu các công nghệ mới liên quan đến trí tuệ nhân tạo, đặc biệt là các hệ thống RAG và vector database.
+Sở thích cá nhân của mình là lắp ráp mô hình Gundam để rèn luyện sự kiên nhẫn, đi bơi lội nâng cao sức khỏe và thưởng thức cà phê đặc sản cùng bạn bè vào dịp cuối tuần.

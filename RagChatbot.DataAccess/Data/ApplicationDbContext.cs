@@ -21,6 +21,8 @@ namespace RagChatbot.DataAccess.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+            
+            modelBuilder.HasPostgresExtension("vector");
 
 
             // AppUser
@@ -30,7 +32,7 @@ namespace RagChatbot.DataAccess.Data
 
             // Subject
             modelBuilder.Entity<Subject>()
-                .HasIndex(s => s.Code)
+                .HasIndex(s => new { s.Code, s.UserId })
                 .IsUnique();
 
             modelBuilder.Entity<Subject>()
@@ -42,11 +44,7 @@ namespace RagChatbot.DataAccess.Data
             // DocumentChunk Embedding Mapping
             modelBuilder.Entity<DocumentChunk>()
                 .Property(c => c.Embedding)
-                .HasConversion(
-                    v => v.HasValue ? JsonSerializer.Serialize(v.Value.ToArray(), (JsonSerializerOptions?)null) : null,
-                    v => v != null ? new ReadOnlyMemory<float>(JsonSerializer.Deserialize<float[]>(v, (JsonSerializerOptions?)null)!) : null
-                )
-                .HasColumnType("nvarchar(max)"); // Store as JSON string in SQL Server
+                .HasColumnType("vector(768)");
 
             // Data Seeding
             // Hash passwords using SHA256 for simplicity in DAL

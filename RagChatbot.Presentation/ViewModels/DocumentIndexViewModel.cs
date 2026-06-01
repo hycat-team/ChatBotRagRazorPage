@@ -7,5 +7,6 @@ namespace RagChatbot.Presentation.ViewModels
     {
         public IEnumerable<DocumentDto> Documents { get; set; } = new List<DocumentDto>();
         public IEnumerable<SubjectDto> Subjects { get; set; } = new List<SubjectDto>();
+        public int? LastSelectedSubjectId { get; set; }
     }
 }

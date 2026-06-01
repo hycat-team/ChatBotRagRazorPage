@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using RagChatbot.DataAccess.EntityModels;
 using RagChatbot.Business.Services;
 using RagChatbot.Business.Interfaces;
+using RagChatbot.DataAccess.Interfaces;
 
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
@@ -52,10 +53,17 @@ namespace RagChatbot.Presentation.Controllers
                 documents.AddRange(docs);
             }
             
+            int? lastSelectedSubjectId = null;
+            if (Request.Cookies.TryGetValue("LastUploadedSubjectId", out string? cookieVal) && int.TryParse(cookieVal, out int lastId))
+            {
+                lastSelectedSubjectId = lastId;
+            }
+
             var viewModel = new RagChatbot.Presentation.ViewModels.DocumentIndexViewModel
             {
                 Documents = documents,
-                Subjects = subjects
+                Subjects = subjects,
+                LastSelectedSubjectId = lastSelectedSubjectId
             };
             return View(viewModel);
         }
@@ -63,7 +71,7 @@ namespace RagChatbot.Presentation.Controllers
         [HttpPost]
         public async Task<IActionResult> Upload(
             int subjectId,
-            IFormFile file,
+            List<IFormFile> files,
             [FromServices] IGoogleDriveService driveService,
             [FromServices] ILocalStorageService localStorage)
         {
@@ -75,48 +83,71 @@ namespace RagChatbot.Presentation.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            if (file == null || file.Length == 0)
+            if (files == null || files.Count == 0)
             {
-                TempData["Error"] = "Please select a valid file.";
+                TempData["Error"] = "Please select valid files.";
                 return RedirectToAction(nameof(Index));
             }
 
-            string filePath;
-            string storageInfo;
+            var successCount = 0;
+            var failedFiles = new List<string>();
+            var storageInfos = new HashSet<string>();
 
-            try
+            foreach (var file in files)
             {
-                using var stream = file.OpenReadStream();
-                filePath = await driveService.UploadFileAsync(stream, file.FileName, file.ContentType);
-                storageInfo = "Google Drive";
-            }
-            catch (Exception driveEx)
-            {
+                if (file.Length == 0) continue;
+
+                string filePath;
+                string storageInfo;
+
                 try
                 {
                     using var stream = file.OpenReadStream();
-                    filePath = await localStorage.SaveFileAsync(stream, file.FileName);
-                    storageInfo = "local server (Google Drive unavailable)";
+                    filePath = await driveService.UploadFileAsync(stream, file.FileName, file.ContentType);
+                    storageInfo = "Google Drive";
                 }
-                catch (Exception localEx)
+                catch (Exception driveEx)
                 {
-                    TempData["Error"] = $"Upload failed. Google Drive: {driveEx.Message} | Local: {localEx.Message}";
-                    return RedirectToAction(nameof(Index));
+                    try
+                    {
+                        using var stream = file.OpenReadStream();
+                        filePath = await localStorage.SaveFileAsync(stream, file.FileName);
+                        storageInfo = "local server";
+                    }
+                    catch (Exception localEx)
+                    {
+                        failedFiles.Add($"{file.FileName} (Drive: {driveEx.Message} | Local: {localEx.Message})");
+                        continue;
+                    }
                 }
+
+                var document = new RagChatbot.Business.DTOs.CreateDocumentDto
+                {
+                    SubjectId = subjectId,
+                    FileName = file.FileName,
+                    FilePath = filePath,
+                    Status = "Pending",
+                    UploadedAt = DateTime.UtcNow
+                };
+
+                await _documentService.AddAsync(document);
+                storageInfos.Add(storageInfo);
+                successCount++;
             }
 
-            var document = new RagChatbot.Business.DTOs.CreateDocumentDto
+            // Save the last uploaded subjectId to Cookie
+            Response.Cookies.Append("LastUploadedSubjectId", subjectId.ToString(), new CookieOptions { Expires = DateTimeOffset.UtcNow.AddDays(30) });
+
+            if (failedFiles.Any())
             {
-                SubjectId = subjectId,
-                FileName = file.FileName,
-                FilePath = filePath,
-                Status = "Pending",
-                UploadedAt = DateTime.UtcNow
-            };
+                TempData["Error"] = $"Uploaded {successCount} files. Failed files: {string.Join(", ", failedFiles)}";
+            }
+            else
+            {
+                var storageMsg = string.Join(" and ", storageInfos);
+                TempData["Success"] = $"Successfully uploaded {successCount} files to {storageMsg} and pending processing.";
+            }
 
-            await _documentService.AddAsync(document);
-
-            TempData["Success"] = $"Document uploaded successfully to {storageInfo} and is pending processing.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -130,9 +161,16 @@ namespace RagChatbot.Presentation.Controllers
             }
 
             var userId = GetCurrentUserId();
-            await _subjectService.AddAsync(new RagChatbot.Business.DTOs.CreateSubjectDto { Code = code, Name = name, UserId = userId });
+            try
+            {
+                await _subjectService.AddAsync(new RagChatbot.Business.DTOs.CreateSubjectDto { Code = code.Trim(), Name = name.Trim(), UserId = userId });
+                TempData["Success"] = "Subject created.";
+            }
+            catch (Exception)
+            {
+                TempData["Error"] = "Mã môn học này đã tồn tại trong tài khoản của bạn.";
+            }
 
-            TempData["Success"] = "Subject created.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -199,6 +237,22 @@ namespace RagChatbot.Presentation.Controllers
                 .ToList();
 
             return Json(indexedDocs);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetDocumentChunks(int id, [FromServices] IDocumentChunkRepository chunkRepository)
+        {
+            var userId = GetCurrentUserId();
+            var document = await _documentService.GetByIdAsync(id);
+            if (document == null) return Json(new { success = false, message = "Document not found." });
+
+            var subject = await _subjectService.GetByIdAsync(document.SubjectId);
+            if (subject == null || subject.UserId != userId) return Json(new { success = false, message = "Unauthorized." });
+
+            var chunks = await chunkRepository.FindAsync(c => c.DocumentId == id);
+            var result = chunks.Select(c => new { c.Id, c.Content, c.PageNumber }).OrderBy(c => c.PageNumber).ThenBy(c => c.Id).ToList();
+
+            return Json(new { success = true, chunks = result });
         }
     }
 }

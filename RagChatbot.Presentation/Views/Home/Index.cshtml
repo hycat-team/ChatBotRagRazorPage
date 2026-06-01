@@ -65,7 +65,15 @@
         </div>
 
         <!-- Input -->
-        <div class="px-4 py-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shadow-[0_-2px_10px_rgba(0,0,0,0.02)] flex-shrink-0 transition-colors duration-200">
+        <div class="px-4 py-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 shadow-[0_-2px_10px_rgba(0,0,0,0.02)] flex-shrink-0 transition-colors duration-200 relative">
+            
+            <!-- Stop Button -->
+            <div id="stopGenerationContainer" class="absolute left-1/2 -top-12 -translate-x-1/2 hidden z-20">
+                <button onclick="stopGeneration()" class="flex items-center gap-2 px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs font-semibold rounded-full shadow-lg border border-slate-700 transition-all">
+                    <i class="fa-solid fa-stop text-[10px] text-red-400"></i> Dừng tạo
+                </button>
+            </div>
+
             <form id="chatForm" class="flex items-end gap-3 max-w-4xl mx-auto">
                 <input type="hidden" id="currentSubjectId" />
                 <input type="hidden" id="currentSessionId" />
@@ -264,14 +272,23 @@ connection.on("ReceiveToken", (token, isEnd) => {
             if (token && token !== "null" && token !== "[]") renderCitations(token, currentAssistantMessageDiv);
         }
         container.scrollTop = container.scrollHeight;
+        setChatInputState(true);
+        hideStopButton();
     }
 });
 
 connection.on("ReceiveError", msg => {
     removeThinkingIndicator();
     isReceivingStream = false;
-    if (currentAssistantMessageDiv)
-        currentAssistantMessageDiv.innerHTML = `<div class="text-red-400 text-sm"><i class="fa-solid fa-circle-exclamation mr-1"></i>${msg}</div>`;
+    setChatInputState(true);
+    hideStopButton();
+    if (currentAssistantMessageDiv) {
+        if (currentAssistantMarkdown.length > 0) {
+            currentAssistantMessageDiv.innerHTML = marked.parse(currentAssistantMarkdown) + `<div class="text-red-400 text-sm mt-2"><i class="fa-solid fa-circle-exclamation mr-1"></i>${msg}</div>`;
+        } else {
+            currentAssistantMessageDiv.innerHTML = `<div class="text-red-400 text-sm"><i class="fa-solid fa-circle-exclamation mr-1"></i>${msg}</div>`;
+        }
+    }
 });
 
 // ── Chat Form ────────────────────────────────────────────────
@@ -284,12 +301,17 @@ document.getElementById("chatForm").addEventListener("submit", async e => {
     input.value = "";
     appendMessage("user", msg, null);
 
+    setChatInputState(false);
+
     const selectedDocs = getSelectedDocIds();
     try {
         showThinkingIndicator();
+        showStopButton();
         await connection.send("SendMessage", currentSessionId, currentSubjectId, msg, selectedDocs);
     } catch(err) {
         removeThinkingIndicator();
+        setChatInputState(true);
+        hideStopButton();
         if (currentAssistantMessageDiv)
             currentAssistantMessageDiv.innerHTML = `<div class="text-red-400 text-sm"><i class="fa-solid fa-circle-exclamation mr-1"></i>Có lỗi xảy ra.</div>`;
     }
@@ -300,6 +322,38 @@ document.getElementById("messageInput").addEventListener("keydown", e => {
 });
 
 // ── UI Helpers ───────────────────────────────────────────────
+function setChatInputState(enabled) {
+    const input = document.getElementById("messageInput");
+    const sendBtn = document.getElementById("sendBtn");
+    
+    if (!enabled) {
+        input.disabled = true;
+        sendBtn.disabled = true;
+        input.placeholder = "AI đang xử lý...";
+    } else {
+        if (!currentSubjectId) return;
+        input.disabled = false;
+        sendBtn.disabled = false;
+        input.placeholder = "Hỏi về " + document.getElementById("chatTitle").textContent + "...";
+        input.focus();
+    }
+}
+
+function showStopButton() {
+    document.getElementById("stopGenerationContainer").classList.remove("hidden");
+}
+
+function hideStopButton() {
+    document.getElementById("stopGenerationContainer").classList.add("hidden");
+}
+
+function stopGeneration() {
+    if (currentSessionId && connection.state === signalR.HubConnectionState.Connected) {
+        connection.invoke("StopGeneration", currentSessionId).catch(console.error);
+        hideStopButton();
+    }
+}
+
 function appendMessage(role, content, citations) {
     const container = document.getElementById("chatMessages");
     const wrapper = document.createElement("div");

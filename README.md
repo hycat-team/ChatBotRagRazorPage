@@ -25,15 +25,13 @@
 | Frontend | Razor Views + Tailwind CSS + ViewModels |
 | Data Transfer | Data Transfer Objects (DTOs) |
 
-## Cấu Trúc Dự Án
+## Cấu Trúc Dự Án (N-Tier Architecture)
 
-RagChatbot.Web/
-├── Controllers/     # Điều hướng HTTP, nhận ViewModels/DTOs
-├── ViewModels/      # Chứa các model chuyên dụng cho UI (LoginViewModel, DocumentIndexViewModel...)
-├── Views/           # Razor Views (Giao diện HTML/CSS)
-├── Hubs/            # ChatHub — WebSocket real-time với SignalR
-├── Services/        # (Business Layer) AiService, DocumentService... xử lý logic và DTOs
-└── Data/            # (Data Access Layer) DbContext và các Repositories
+```text
+CHATBOTRAG/
+├── RagChatbot.Presentation/   # Tầng Web (Controllers, Views, Hubs, JS/CSS)
+├── RagChatbot.Business/       # Tầng Nghiệp Vụ (Services, Logic AI, RAG)
+└── RagChatbot.DataAccess/     # Tầng Dữ Liệu (EF Core, Repositories, Migrations)
 ```
 
 ## Hướng Dẫn Cài Đặt & Khởi Chạy
@@ -60,7 +58,7 @@ Lệnh này khởi chạy PostgreSQL với `pgvector` tại cổng `5432`.
 ### Bước 3: Chạy Ứng Dụng Web
 
 ```bash
-cd RagChatbot.Web
+cd RagChatbot.Presentation
 dotnet run
 ```
 

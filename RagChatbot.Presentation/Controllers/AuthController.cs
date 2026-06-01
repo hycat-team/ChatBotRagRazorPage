@@ -73,5 +73,34 @@ namespace RagChatbot.Presentation.Controllers
             await HttpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return RedirectToAction("Login");
         }
+
+        [HttpGet]
+        public IActionResult Register()
+        {
+            if (User.Identity?.IsAuthenticated == true)
+            {
+                return RedirectToAction("Index", "Home");
+            }
+            return View(new RagChatbot.Presentation.ViewModels.RegisterViewModel());
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> Register(RagChatbot.Presentation.ViewModels.RegisterViewModel model)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(model);
+            }
+
+            var result = await _authService.RegisterAsync(model.Username, model.Password);
+            if (!result)
+            {
+                ViewBag.Error = "Tên đăng nhập đã tồn tại.";
+                return View(model);
+            }
+
+            TempData["Success"] = "Đăng ký tài khoản thành công! Vui lòng đăng nhập.";
+            return RedirectToAction("Login");
+        }
     }
 }

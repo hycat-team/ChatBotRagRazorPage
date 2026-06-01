@@ -16,10 +16,13 @@
 
   <ItemGroup>
     <PackageReference Include="DocumentFormat.OpenXml" Version="3.5.1" />
+    <PackageReference Include="ExcelDataReader" Version="3.7.0" />
+    <PackageReference Include="ExcelDataReader.DataSet" Version="3.7.0" />
     <PackageReference Include="Google.Apis.Drive.v3" Version="1.74.0.4135" />
     <PackageReference Include="Microsoft.Extensions.VectorData.Abstractions" Version="10.6.0" />
     <PackageReference Include="Microsoft.SemanticKernel" Version="1.76.0" />
     <PackageReference Include="Microsoft.SemanticKernel.Connectors.Google" Version="1.76.0-alpha" />
+    <PackageReference Include="Pgvector.EntityFrameworkCore" Version="0.2.2" />
     <PackageReference Include="UglyToad.PdfPig" Version="1.7.0-custom-5" />
   </ItemGroup>
 
