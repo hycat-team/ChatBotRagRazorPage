@@ -30,6 +30,22 @@ namespace RagChatbot.Business.Services
             return null;
         }
 
+        public async Task<bool> RegisterAsync(string username, string password)
+        {
+            var existingUser = await _userRepository.GetByUsernameAsync(username);
+            if (existingUser != null) return false;
+
+            var user = new AppUser
+            {
+                Username = username,
+                PasswordHash = HashPassword(password)
+            };
+
+            await _userRepository.AddAsync(user);
+            await _userRepository.SaveChangesAsync();
+            return true;
+        }
+
         private string HashPassword(string password)
         {
             using var sha256 = SHA256.Create();

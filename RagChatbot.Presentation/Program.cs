@@ -34,7 +34,11 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
-    options.UseNpgsql(connectionString, o => o.UseVector());
+    options.UseNpgsql(connectionString, o => 
+    {
+        o.UseVector();
+        o.MigrationsAssembly("RagChatbot.DataAccess");
+    });
 });
 
 // Add SignalR
@@ -77,6 +81,8 @@ using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     dbContext.Database.Migrate();
+
+
 
     var stuckDocs = dbContext.Documents.Where(d => d.Status == "Processing").ToList();
     if (stuckDocs.Any())

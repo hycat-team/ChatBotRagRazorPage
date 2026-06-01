@@ -1,7 +1,7 @@
-@model RagChatbot.Presentation.ViewModels.LoginViewModel
+@model RagChatbot.Presentation.ViewModels.RegisterViewModel
 @{
-    Layout = null; // No header/footer for the login page
-    ViewData["Title"] = "Đăng nhập";
+    Layout = null; // No header/footer for the register page
+    ViewData["Title"] = "Đăng ký tài khoản";
 }
 
 <!DOCTYPE html>
@@ -95,18 +95,18 @@
 </head>
 <body class="min-h-screen flex items-center justify-center relative overflow-hidden">
     
-    <!-- Login Container -->
-    <div class="w-full max-w-md px-6 relative z-10">
+    <!-- Register Container -->
+    <div class="w-full max-w-md px-6 relative z-10 my-8">
         <div class="glass-card rounded-3xl p-10 transform transition-all hover:scale-[1.01] duration-300">
             <!-- Logo & Title -->
-            <div class="text-center mb-8">
+            <div class="text-center mb-6">
                 <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-green-600 shadow-lg shadow-emerald-500/30 mb-4">
-                    <i class="fa-solid fa-robot text-3xl text-white"></i>
+                    <i class="fa-solid fa-user-plus text-3xl text-white"></i>
                 </div>
-                <h2 class="text-3xl font-bold text-gray-800 dark:text-emerald-50 mb-2">Đăng Nhập</h2>
-                <p class="text-emerald-600 dark:text-emerald-400 text-sm font-medium">RAG Chatbot Workspace</p>
+                <h2 class="text-3xl font-bold text-gray-800 dark:text-emerald-50 mb-2">Đăng Ký</h2>
+                <p class="text-emerald-600 dark:text-emerald-400 text-sm font-medium">Tạo tài khoản RAG Chatbot</p>
             </div>
-
+ 
             <!-- Error Alert -->
             @if (ViewBag.Error != null)
             {
@@ -116,27 +116,18 @@
                 </div>
             }
 
-            <!-- Success Alert -->
-            @if (TempData["Success"] != null)
-            {
-                <div class="bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800/50 text-emerald-600 dark:text-emerald-400 px-4 py-3 rounded-xl mb-6 flex items-center gap-3">
-                    <i class="fa-solid fa-circle-check"></i>
-                    <span class="text-sm font-medium">@TempData["Success"]</span>
-                </div>
-            }
-
             <!-- Form -->
-            <form asp-action="Login" method="post" class="space-y-5">
-                <input type="hidden" asp-for="ReturnUrl" />
+            <form asp-action="Register" method="post" class="space-y-4">
                 
                 <div>
-                    <label class="block text-sm font-semibold text-gray-700 dark:text-emerald-200 mb-1.5 ml-1">Tài khoản</label>
+                    <label class="block text-sm font-semibold text-gray-700 dark:text-emerald-200 mb-1.5 ml-1">Tên đăng nhập</label>
                     <div class="relative">
                         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-emerald-500 dark:text-emerald-400">
                             <i class="fa-solid fa-user"></i>
                         </div>
-                        <input asp-for="Username" class="input-light w-full rounded-xl py-3 pl-11 pr-4 placeholder-gray-400 dark:placeholder-emerald-600/70" placeholder="Nhập tên đăng nhập..." required />
+                        <input asp-for="Username" class="input-light w-full rounded-xl py-3 pl-11 pr-4 placeholder-gray-400 dark:placeholder-emerald-600/70" placeholder="Chữ cái, số và dấu gạch dưới..." required />
                     </div>
+                    <span asp-validation-for="Username" class="text-red-500 text-xs mt-1 block font-medium"></span>
                 </div>
                 
                 <div>
@@ -145,18 +136,30 @@
                         <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-emerald-500 dark:text-emerald-400">
                             <i class="fa-solid fa-lock"></i>
                         </div>
-                        <input asp-for="Password" class="input-light w-full rounded-xl py-3 pl-11 pr-4 placeholder-gray-400 dark:placeholder-emerald-600/70" placeholder="Nhập mật khẩu..." required />
+                        <input asp-for="Password" class="input-light w-full rounded-xl py-3 pl-11 pr-4 placeholder-gray-400 dark:placeholder-emerald-600/70" placeholder="Tối thiểu 6 ký tự..." required type="password" />
                     </div>
+                    <span asp-validation-for="Password" class="text-red-500 text-xs mt-1 block font-medium"></span>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-semibold text-gray-700 dark:text-emerald-200 mb-1.5 ml-1">Xác nhận mật khẩu</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-emerald-500 dark:text-emerald-400">
+                            <i class="fa-solid fa-check-double"></i>
+                        </div>
+                        <input asp-for="ConfirmPassword" class="input-light w-full rounded-xl py-3 pl-11 pr-4 placeholder-gray-400 dark:placeholder-emerald-600/70" placeholder="Nhập lại mật khẩu..." required type="password" />
+                    </div>
+                    <span asp-validation-for="ConfirmPassword" class="text-red-500 text-xs mt-1 block font-medium"></span>
                 </div>
                 
                 <div class="pt-4">
                     <button type="submit" class="w-full bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white font-semibold py-3.5 px-4 rounded-xl shadow-lg shadow-emerald-500/30 transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0">
-                        Đăng nhập hệ thống <i class="fa-solid fa-arrow-right ml-2 text-sm"></i>
+                        Đăng ký tài khoản <i class="fa-solid fa-user-plus ml-2 text-sm"></i>
                     </button>
                 </div>
 
                 <div class="text-center mt-6 text-sm text-gray-600 dark:text-emerald-400 font-medium">
-                    Chưa có tài khoản? <a href="/Auth/Register" class="text-emerald-500 hover:underline font-semibold">Đăng ký ngay</a>
+                    Đã có tài khoản? <a href="/Auth/Login" class="text-emerald-500 hover:underline font-semibold">Đăng nhập ngay</a>
                 </div>
             </form>
         </div>

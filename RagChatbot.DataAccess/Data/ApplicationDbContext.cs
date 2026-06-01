@@ -32,7 +32,7 @@ namespace RagChatbot.DataAccess.Data
 
             // Subject
             modelBuilder.Entity<Subject>()
-                .HasIndex(s => s.Code)
+                .HasIndex(s => new { s.Code, s.UserId })
                 .IsUnique();
 
             modelBuilder.Entity<Subject>()

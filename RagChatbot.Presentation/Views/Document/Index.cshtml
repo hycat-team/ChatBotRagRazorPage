@@ -63,18 +63,19 @@
                         <label class="block text-xs font-bold text-slate-500 dark:text-slate-300 mb-1">Môn học</label>
                         <select name="subjectId" required
                             class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-gray-800 dark:text-slate-100 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200 dark:focus:ring-emerald-500/20 outline-none transition-all">
-                            <option value="" disabled selected class="text-slate-400 dark:text-slate-500">-- Chọn môn học --</option>
+                            <option value="" disabled selected="@(!Model.LastSelectedSubjectId.HasValue)" class="text-slate-400 dark:text-slate-500">-- Chọn môn học --</option>
                             @if (Model.Subjects != null) {
                                 foreach (var s in Model.Subjects) {
-                                    <option value="@s.Id">@s.Code – @s.Name</option>
+                                    bool isSelected = Model.LastSelectedSubjectId.HasValue && Model.LastSelectedSubjectId.Value == s.Id;
+                                    <option value="@s.Id" selected="@isSelected">@s.Code – @s.Name</option>
                                 }
                             }
                         </select>
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-500 dark:text-slate-300 mb-1">File (PDF, DOCX)</label>
-                        <input type="file" name="file" accept=".pdf,.docx" required id="fileInput"
-                            class="hidden" onchange="updateFileName(this)" />
+                        <label class="block text-xs font-bold text-slate-500 dark:text-slate-300 mb-1">File (PDF, DOCX, TXT, XLSX, PPTX)</label>
+                        <input type="file" name="files" accept=".pdf,.docx,.txt,.xlsx,.pptx" required id="fileInput"
+                            class="hidden" onchange="updateFileName(this)" multiple />
                         <label for="fileInput"
                             class="flex items-center gap-3 w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 border-dashed rounded-lg px-3 py-3 cursor-pointer hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-slate-900 transition-all group">
                             <i class="fa-solid fa-file-arrow-up text-slate-400 dark:text-slate-500 group-hover:text-emerald-500 dark:group-hover:text-emerald-400"></i>
@@ -153,7 +154,15 @@
                                 <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50 group transition-colors" id="doc-row-@doc.Id">
                                     <td class="px-5 py-3">
                                         <div class="flex items-center gap-2.5">
-                                            <i class="fa-solid @(doc.FileName.EndsWith(".pdf") ? "fa-file-pdf text-red-500" : "fa-file-word text-blue-500") text-sm flex-shrink-0"></i>
+                                            @{
+                                                string iconClass = "fa-file-lines text-slate-500";
+                                                string lowerFileName = doc.FileName.ToLowerInvariant();
+                                                if (lowerFileName.EndsWith(".pdf")) { iconClass = "fa-file-pdf text-red-500"; }
+                                                else if (lowerFileName.EndsWith(".docx")) { iconClass = "fa-file-word text-blue-500"; }
+                                                else if (lowerFileName.EndsWith(".xlsx") || lowerFileName.EndsWith(".xls")) { iconClass = "fa-file-excel text-emerald-600"; }
+                                                else if (lowerFileName.EndsWith(".pptx") || lowerFileName.EndsWith(".ppt")) { iconClass = "fa-file-powerpoint text-orange-500"; }
+                                            }
+                                            <i class="fa-solid @iconClass text-sm flex-shrink-0"></i>
                                             <span class="text-slate-700 dark:text-slate-200 font-semibold max-w-xs truncate" title="@doc.FileName">@doc.FileName</span>
                                         </div>
                                     </td>
@@ -165,7 +174,7 @@
                                             if (doc.DocumentChunks.Count == 0) {
                                                 <span class="px-2.5 py-1 rounded-full bg-yellow-50 dark:bg-yellow-500/10 text-yellow-700 dark:text-yellow-400 text-xs font-bold border border-yellow-200 dark:border-yellow-500/20" title="PDF bị scan/flatten, không trích xuất được text">⚠️ Indexed (trống)</span>
                                             } else {
-                                                <span class="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-bold border border-emerald-200 dark:border-emerald-500/20">✓ Indexed · @doc.DocumentChunks.Count chunks</span>
+                                                <button onclick="viewChunks(@doc.Id, '@doc.FileName.Replace("'","\\'")')" class="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-bold border border-emerald-200 dark:border-emerald-500/20 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-all cursor-pointer">✓ Indexed · @doc.DocumentChunks.Count chunks</button>
                                             }
                                         } else if (doc.Status == "Processing") {
                                             <span class="px-2.5 py-1 rounded-full bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 text-xs font-bold border border-blue-200 dark:border-blue-500/20 animate-pulse">⟳ Processing...</span>
@@ -194,10 +203,111 @@
     </div>
 </div>
 
+<!-- Chunk View Modal -->
+<div id="chunkModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl transition-all scale-95 duration-200" id="chunkModalContainer">
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+            <div>
+                <h3 class="text-base font-bold text-gray-800 dark:text-slate-100" id="chunkModalTitle">Danh sách Chunks</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5" id="chunkModalSubtitle">Tệp tin: abc.pdf</p>
+            </div>
+            <button onclick="closeChunkModal()" class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <!-- Content -->
+        <div class="flex-1 overflow-y-auto p-6 space-y-4" id="chunkModalContent">
+            <!-- Chunks will be dynamically rendered here -->
+        </div>
+    </div>
+</div>
+
 @section Scripts {
 <script>
 function updateFileName(input) {
-    document.getElementById('fileNameLabel').textContent = input.files[0]?.name ?? 'Nhấp để chọn file...';
+    if (input.files && input.files.length > 1) {
+        document.getElementById('fileNameLabel').textContent = `Đã chọn ${input.files.length} tệp tin`;
+    } else {
+        document.getElementById('fileNameLabel').textContent = input.files[0]?.name ?? 'Nhấp để chọn file...';
+    }
+}
+
+function openChunkModal(title, subtitle) {
+    document.getElementById('chunkModalTitle').textContent = title;
+    document.getElementById('chunkModalSubtitle').textContent = subtitle;
+    const modal = document.getElementById('chunkModal');
+    modal.classList.remove('hidden');
+    setTimeout(() => {
+        document.getElementById('chunkModalContainer').classList.remove('scale-95');
+        document.getElementById('chunkModalContainer').classList.add('scale-100');
+    }, 10);
+}
+
+function closeChunkModal() {
+    document.getElementById('chunkModalContainer').classList.remove('scale-100');
+    document.getElementById('chunkModalContainer').classList.add('scale-95');
+    setTimeout(() => {
+        document.getElementById('chunkModal').classList.add('hidden');
+    }, 150);
+}
+
+async function viewChunks(docId, fileName) {
+    const contentDiv = document.getElementById('chunkModalContent');
+    contentDiv.innerHTML = `
+        <div class="flex flex-col items-center justify-center py-12">
+            <i class="fa-solid fa-circle-notch fa-spin text-emerald-500 text-3xl mb-3"></i>
+            <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Đang tải danh sách chunks...</p>
+        </div>
+    `;
+    openChunkModal('Xem nội dung Chunks', `Tài liệu: ${fileName}`);
+
+    try {
+        const res = await fetch(`/Document/GetDocumentChunks?id=${docId}`);
+        const data = await res.json();
+        
+        if (data.success && data.chunks.length > 0) {
+            contentDiv.innerHTML = '';
+            data.chunks.forEach((chunk, index) => {
+                const pageLabel = chunk.pageNumber ? `Trang ${chunk.pageNumber}` : 'N/A';
+                const chunkCard = document.createElement('div');
+                chunkCard.className = 'bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800/80 rounded-2xl p-5 relative overflow-hidden transition-all hover:border-emerald-500/50 dark:hover:border-emerald-500/30';
+                chunkCard.innerHTML = `
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400 text-[10px] font-bold border border-emerald-200 dark:border-emerald-900/30">Chunk #${index + 1}</span>
+                        <span class="text-xs font-semibold text-slate-500 dark:text-slate-400"><i class="fa-regular fa-file mr-1"></i>${pageLabel}</span>
+                    </div>
+                    <p class="text-sm text-slate-700 dark:text-slate-300 leading-relaxed font-medium whitespace-pre-wrap">${escapeHtml(chunk.content)}</p>
+                `;
+                contentDiv.appendChild(chunkCard);
+            });
+        } else {
+            contentDiv.innerHTML = `
+                <div class="flex flex-col items-center justify-center py-12">
+                    <i class="fa-solid fa-inbox text-slate-300 dark:text-slate-700 text-4xl mb-3"></i>
+                    <p class="text-sm font-medium text-slate-500 dark:text-slate-400">Không tìm thấy chunks nào cho tài liệu này.</p>
+                </div>
+            `;
+        }
+    } catch (err) {
+        contentDiv.innerHTML = `
+            <div class="flex flex-col items-center justify-center py-12 text-red-500">
+                <i class="fa-solid fa-circle-exclamation text-3xl mb-3"></i>
+                <p class="text-sm font-medium">Lỗi kết nối máy chủ: ${err.message}</p>
+            </div>
+        `;
+    }
+}
+
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, m => map[m]);
 }
 
 // ── Subject rename inline ────────────────────────────────────
