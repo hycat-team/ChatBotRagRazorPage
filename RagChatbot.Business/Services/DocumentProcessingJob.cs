@@ -103,7 +103,7 @@ namespace RagChatbot.Business.Services
                 var allChunks = new List<(int PageNumber, string Text)>();
                 foreach (var page in pages)
                 {
-                    var chunks = chunkingService.ChunkText(page.Text);
+                    var chunks = await chunkingService.ChunkTextAsync(page.Text);
                     foreach (var chunkText in chunks)
                     {
                         allChunks.Add((PageNumber: page.PageNumber, Text: chunkText));
