@@ -123,7 +123,7 @@ namespace RagChatbot.Business.Services
         }
 #pragma warning restore SKEXP0001 // Type is for evaluation purposes only and is subject to change or removal in future updates. Suppress this diagnostic to proceed.
 
-        public async IAsyncEnumerable<string> GetChatStreamingResponseAsync(string systemPrompt, string userMessage, IEnumerable<RagChatbot.Business.DTOs.ChatMessageDto>? history = null)
+        public async IAsyncEnumerable<string> GetChatStreamingResponseAsync(string systemPrompt, string userMessage, IEnumerable<RagChatbot.Business.DTOs.ChatMessageDto>? history = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             var chatHistory = new ChatHistory(systemPrompt);
             
@@ -147,71 +147,105 @@ namespace RagChatbot.Business.Services
                 }
             };
 
-            var stream = _chatCompletion.GetStreamingChatMessageContentsAsync(chatHistory, executionSettings, _kernel);
+            int maxRetries = 3;
+            int delayMs = 1500;
 
-            await foreach (var content in stream)
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
             {
-                if (content.Content != null)
+                bool hasYielded = false;
+                IAsyncEnumerator<StreamingChatMessageContent>? enumerator = null;
+                bool retryNeeded = false;
+                
+                try
                 {
-                    yield return content.Content;
+                    var stream = _chatCompletion.GetStreamingChatMessageContentsAsync(chatHistory, executionSettings, _kernel, cancellationToken);
+                    enumerator = stream.GetAsyncEnumerator(cancellationToken);
+                }
+                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+                {
+                    if (attempt < maxRetries) { retryNeeded = true; } else throw new TimeoutException("Kết nối API bị quá hạn.");
+                }
+                catch (OperationCanceledException)
+                {
+                    throw; // Propagate to ChatHub
+                }
+                catch (Microsoft.SemanticKernel.HttpOperationException ex) when (attempt < maxRetries && (ex.StatusCode == System.Net.HttpStatusCode.InternalServerError || ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests || (ex.Message != null && (ex.Message.Contains("500") || ex.Message.Contains("429")))))
+                {
+                    retryNeeded = true;
+                }
+
+                if (retryNeeded)
+                {
+                    Console.WriteLine($"[AiService] API Error/Timeout. Retrying ({attempt}/{maxRetries}) in {delayMs}ms...");
+                    await Task.Delay(delayMs, cancellationToken);
+                    delayMs *= 2;
+                    continue;
+                }
+
+                while (true)
+                {
+                    bool hasNext = false;
+                    StreamingChatMessageContent? currentContent = null;
+                    
+                    try
+                    {
+                        if (enumerator != null)
+                        {
+                            hasNext = await enumerator.MoveNextAsync();
+                            if (hasNext) currentContent = enumerator.Current;
+                        }
+                    }
+                    catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+                    {
+                        if (attempt < maxRetries && !hasYielded) { retryNeeded = true; } else throw new TimeoutException("Kết nối API bị quá hạn giữa chừng.");
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        throw; // Propagate to ChatHub
+                    }
+                    catch (Microsoft.SemanticKernel.HttpOperationException ex) when (attempt < maxRetries && !hasYielded && (ex.StatusCode == System.Net.HttpStatusCode.InternalServerError || ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests || (ex.Message != null && (ex.Message.Contains("500") || ex.Message.Contains("429")))))
+                    {
+                        retryNeeded = true;
+                    }
+                    
+                    if (retryNeeded)
+                    {
+                        Console.WriteLine($"[AiService] API Error during stream. Retrying ({attempt}/{maxRetries}) in {delayMs}ms...");
+                        await Task.Delay(delayMs, cancellationToken);
+                        delayMs *= 2;
+                        if (enumerator != null) await enumerator.DisposeAsync();
+                        break; 
+                    }
+
+                    if (!hasNext)
+                    {
+                        if (enumerator != null) await enumerator.DisposeAsync();
+                        
+                        // Retry if response is completely empty
+                        if (!hasYielded && attempt < maxRetries)
+                        {
+                            Console.WriteLine($"[AiService] API returned empty response. Retrying ({attempt}/{maxRetries}) in {delayMs}ms...");
+                            await Task.Delay(delayMs, cancellationToken);
+                            delayMs *= 2;
+                            break; // break while loop to continue for loop
+                        }
+                        
+                        yield break; 
+                    }
+
+                    if (currentContent?.Content != null)
+                    {
+                        hasYielded = true;
+                        yield return currentContent.Content;
+                    }
                 }
             }
         }
 
         public async Task<string> RewriteQueryAsync(string originalQuery, IEnumerable<RagChatbot.Business.DTOs.ChatMessageDto> history)
         {
-            if (history == null || !history.Any())
-            {
-                return originalQuery;
-            }
-
-            // Context Sliding Window: Take only the last 3 messages
-            var recentHistory = history.TakeLast(3).ToList();
-            var historyText = string.Join("\n", recentHistory.Select(m => $"{(m.Role == "user" ? "Người dùng" : "AI")}: {m.Content}"));
-
-            var prompt = $@"You are a query rewriting assistant. Your task is to rewrite the [Current Query] into a STANDALONE query in Vietnamese based on the [Chat History].
-RULES:
-- The standalone query must include the full context and subject.
-- Example: History asks about Duc's age, Current Query is ""Còn Duy thì sao"", you rewrite it as ""Duy bao nhiêu tuổi?"".
-- DO NOT answer the question. ONLY output the rewritten query string.
-
-[Chat History]
-{historyText}
-
-[Current Query]: ""{originalQuery}""
-
-Rewritten Query:";
-
-            var chatHistory = new ChatHistory();
-            chatHistory.AddUserMessage(prompt);
-            
-            var executionSettings = new PromptExecutionSettings
-            {
-                ExtensionData = new Dictionary<string, object>
-                {
-                    { "max_tokens", 100 },
-                    { "temperature", 0.1 }
-                }
-            };
-
-            try
-            {
-                var result = await _fastChatCompletion.GetChatMessageContentAsync(chatHistory, executionSettings, _kernel);
-                var rewrittenQuery = result.Content?.Trim() ?? "";
-                Console.WriteLine($"[RewriteQueryAsync Response]: '{rewrittenQuery}'");
-
-                if (string.IsNullOrWhiteSpace(rewrittenQuery) || rewrittenQuery.Contains("Rewritten Query:"))
-                {
-                    return originalQuery;
-                }
-
-                return rewrittenQuery.Replace("\"", "");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[RewriteQueryAsync Error]: {ex}");
-                return originalQuery;
-            }
+            // Bypass rewriting to save tokens as requested by user
+            return await Task.FromResult(originalQuery);
         }
     }
 }

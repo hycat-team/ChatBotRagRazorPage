@@ -37,8 +37,8 @@ graph TD
         M --> N{Có phải câu chào đơn giản?}
         N -->|Không RAG| P[Bỏ qua Vector Search]
         
-        N -->|RAG| O1[Rewrite Query LLM]
-        O1 -->|Sliding Window History + Query| O2[Standalone Query]
+        N -->|RAG| O1[Bypass Rewrite Query]
+        O1 -->|Giữ nguyên câu hỏi User| O2[Standalone Query]
         O2 --> O3[Gọi AiService.GenerateEmbeddingAsync]
         
         O3 --> Q[So sánh Vector cosine similarity]
@@ -53,12 +53,17 @@ graph TD
         S1 --> W
     end
 
-    subgraph LLM [AI Service - Streaming]
-        U --> V[Stream phản hồi từng token]
+    subgraph LLM [AI Service - Streaming & Retry]
+        U --> V1{Gặp lỗi 500/429/Rỗng?}
+        V1 -->|Có| V2[Tự động Retry tối đa 3 lần]
+        V1 -->|Không| V[Stream phản hồi từng token]
+        V2 --> V
+        V -->|Tín hiệu Pause từ User| V3[Ngắt Stream ngay lập tức]
         V -->|SignalR: ReceiveToken| W[Hiển thị chữ chạy real-time trên UI]
+        V3 --> W
     end
 
-    W -->|Kết thúc Stream| X[Đóng gói Trích dẫn & Lưu tin nhắn Model vào DB]
+    W -->|Kết thúc Stream / Đã dừng tạo| X[Đóng gói Trích dẫn & Lưu tin nhắn Model vào DB]
 
     class A,B,C,D,E,F,G,H,I,W client;
     class J,K,L,M,N,O,P,Q,S,T,U,X server;
@@ -116,18 +121,20 @@ Khi người dùng nhập văn bản vào ô chat và nhấn gửi (hoặc nhấ
 2. **Server-side xử lý tại `ChatHub.cs` (`SendMessage`):**
    * **Bước 1: Khởi tạo/Xác thực Session:** Nếu chưa có Session ID (phiên chat mới), hệ thống tự động tạo một `ChatSession` mới trong DB và gửi ID về client qua sự kiện `SessionCreated`.
    * **Bước 2: Lưu tin nhắn của User:** Bản ghi tin nhắn mới của người dùng được lưu vào bảng `ChatMessage`.
-   * **Bước 3: Lọc & Cấu trúc Truy vấn (Context Sliding Window & Rewrite Query):**
-     * Hệ thống phân tích xem tin nhắn có phải câu chào hỏi xã giao ngắn không. Nếu đúng, bỏ qua bước tìm kiếm.
-     * Nếu là câu hỏi kiến thức, hệ thống lấy đúng **3 tin nhắn gần nhất** (Sliding Window) kết hợp với câu hỏi hiện tại gửi cho LLM để viết lại thành một **Standalone Query** (Truy vấn độc lập).
+   * **Bước 3: Lọc & Cấu trúc Truy vấn:**
+     * Hệ thống phân tích xem tin nhắn có phải câu chào hỏi xã giao ngắn không. Nếu đúng, trả về câu chào mặc định bằng code (bỏ qua LLM để tiết kiệm token).
+     * Bỏ qua bước gọi LLM viết lại câu hỏi (Rewrite Query bị vô hiệu hóa để tiết kiệm token), nên **Standalone Query** chính là nguyên bản câu hỏi của người dùng.
      * Chuyển Standalone Query thành **Vector 768 chiều**.
      * So sánh Vector này với database (Cosine similarity) và áp dụng màng lọc trực tiếp `WHERE DocumentId IN (selectedDocs)`. Lấy ra Top-K Chunks tương đồng.
    * **Bước 4: Xác thực Hallucination & Tạo System Prompt (Grounding & Isolation Rule):**
      * **ZERO_HALLUCINATION_POLICY:** Nếu không tìm thấy Chunks nào phù hợp, hệ thống lập tức ngắt LLM, trả về Fallback: *"Hệ thống không tìm thấy thông tin trong các tài liệu đã chọn"*.
      * **GROUNDING_RULE:** Bơm Top-K Chunks vào System Prompt và ép LLM tuyệt đối chỉ ánh xạ 1:1 với dữ liệu này.
      * **ISOLATION_RULE:** Cô lập hoàn toàn lịch sử chat (`history = null`), chỉ dùng Standalone Query cho LLM sinh câu trả lời để tránh Data Leakage (tránh AI tự lấy lịch sử ra trả lời thay vì dùng tài liệu).
-   * **Bước 5: Stream kết quả từ LLM (Low Temperature):**
-     * Gọi API Gemini/OpenAI thông qua Semantic Kernel theo luồng streaming với tham số `temperature` cực thấp để đảm bảo tính chính xác và không sáng tạo thừa.
+   * **Bước 5: Stream kết quả từ LLM & Xử lý Lỗi/Dừng (Low Temperature):**
+     * Gọi API Gemini/OpenAI thông qua Semantic Kernel theo luồng streaming.
+     * Có cơ chế **Tự động Retry 3 lần** nếu Google API trả về lỗi 500/429 hoặc trả về dữ liệu rỗng.
      * Với mỗi token trả về từ API, gọi `Clients.Caller.SendAsync("ReceiveToken", token, false)` để đẩy về client real-time.
+     * **Nút Dừng tạo (Pause):** Giao diện hiển thị nút Stop. Khi người dùng bấm, Server nhận tín hiệu hủy `CancellationToken`, ngắt luồng stream ngay lập tức và dán nhãn `*(Đã dừng tạo)*`.
    * **Bước 6: Hoàn tất & Ghi nhận Trích dẫn (Citation Injection):**
-     * Khi kết thúc stream, server đóng gói toàn bộ nội dung AI cùng danh sách nguồn tham khảo (tên file, số trang) bằng JSON.
-     * Gửi tín hiệu kết thúc kèm danh sách trích dẫn về client để hiển thị link tham khảo trực quan. Lên database ghi nhận thành message của `Model`.
+     * Khi kết thúc stream (hoặc bị ngắt bởi người dùng), server đóng gói toàn bộ nội dung AI đã sinh cùng danh sách nguồn tham khảo.
+     * Gửi tín hiệu kết thúc kèm danh sách trích dẫn về client. Lên database ghi nhận thành message của `Model`.

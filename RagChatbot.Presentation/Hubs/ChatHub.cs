@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.SignalR;
 using RagChatbot.Business.Interfaces;
 using RagChatbot.DataAccess.EntityModels;
 using System.Text.Json;
+using System.Collections.Concurrent;
 
 namespace RagChatbot.Presentation.Hubs
 {
@@ -14,6 +15,7 @@ namespace RagChatbot.Presentation.Hubs
         private readonly IVectorSearchService _vectorSearchService;
         private readonly IAiService _aiService;
         private readonly ILogger<ChatHub> _logger;
+        private static readonly ConcurrentDictionary<string, CancellationTokenSource> _activeGenerations = new();
 
         public ChatHub(
             IChatService chatService,
@@ -105,7 +107,13 @@ namespace RagChatbot.Presentation.Hubs
                     await Clients.Caller.SendAsync("SessionCreated", sessionId.ToString());
                 }
 
-                // 1. Save user message
+                var realSessionIdStr = sessionId.ToString();
+                using var cts = new CancellationTokenSource();
+                _activeGenerations[realSessionIdStr] = cts;
+
+                try
+                {
+                    // 1. Save user message
                 var userMessage = new RagChatbot.Business.DTOs.CreateChatMessageDto
                 {
                     SessionId = sessionId,
@@ -136,6 +144,25 @@ namespace RagChatbot.Presentation.Hubs
                     }
 
                     similarChunks = await _vectorSearchService.SearchSimilarChunksAsync(subjectId, questionEmbedding, topK: 15, documentIds: documentIds);
+                }
+                else
+                {
+                    // Hardcode greeting response to save tokens and avoid LLM API errors
+                    var greetingResponse = "Chào bạn! Mình là trợ lý thông minh. Mình có thể giúp gì cho bạn hôm nay?";
+                    
+                    await Clients.Caller.SendAsync("ReceiveToken", "", false); // Initialize bubble
+                    await Clients.Caller.SendAsync("ReceiveToken", greetingResponse, false);
+                    
+                    var assistantMsgGreeting = new RagChatbot.Business.DTOs.CreateChatMessageDto
+                    {
+                        SessionId = sessionId,
+                        Role = "assistant",
+                        Content = greetingResponse,
+                        Citations = "[]"
+                    };
+                    await _chatService.AddMessageAsync(assistantMsgGreeting);
+                    await Clients.Caller.SendAsync("ReceiveToken", "[]", true);
+                    return;
                 }
 
                 // ZERO_HALLUCINATION_POLICY: Return fallback if no relevant chunks are found
@@ -195,17 +222,28 @@ Tuyệt đối không sử dụng kiến thức bên ngoài. Nếu không có th
 ";
 
                 // 5. Get Streaming Response
-                // ISOLATION_RULE: Pass standaloneQuery as the input and NULL for history to avoid Data Leakage.
-                var stream = _aiService.GetChatStreamingResponseAsync(systemPrompt, standaloneQuery, null);
+                var stream = _aiService.GetChatStreamingResponseAsync(systemPrompt, standaloneQuery, null, cts.Token);
 
                 var fullResponse = new System.Text.StringBuilder();
+                bool wasCanceled = false;
 
                 await Clients.Caller.SendAsync("ReceiveToken", "", false);
 
-                await foreach (var token in stream)
+                try
                 {
-                    fullResponse.Append(token);
-                    await Clients.Caller.SendAsync("ReceiveToken", token, false);
+                    await foreach (var token in stream.WithCancellation(cts.Token))
+                    {
+                        fullResponse.Append(token);
+                        await Clients.Caller.SendAsync("ReceiveToken", token, false);
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    wasCanceled = true;
+                    _logger.LogInformation("Generation stopped by user for session {SessionId}", realSessionIdStr);
+                    // Add an indicator that it was stopped
+                    fullResponse.Append("\n\n*(Đã dừng tạo)*");
+                    await Clients.Caller.SendAsync("ReceiveToken", "\n\n*(Đã dừng tạo)*", false);
                 }
 
                 var finalResponseStr = fullResponse.ToString();
@@ -227,12 +265,27 @@ Tuyệt đối không sử dụng kiến thức bên ngoài. Nếu không có th
 
                 // 7. Send completion with citations
                 await Clients.Caller.SendAsync("ReceiveToken", citationsJson, true);
+                
+                } // end try for activeGenerations
+                finally
+                {
+                    _activeGenerations.TryRemove(realSessionIdStr, out _);
+                }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error processing chat message");
                 await Clients.Caller.SendAsync("ReceiveError", "An error occurred while processing your message.");
             }
+        }
+
+        public Task StopGeneration(string sessionIdStr)
+        {
+            if (_activeGenerations.TryGetValue(sessionIdStr, out var cts))
+            {
+                cts.Cancel();
+            }
+            return Task.CompletedTask;
         }
     }
 }

@@ -33,7 +33,7 @@ namespace RagChatbot.Business.Services
             }
             else
             {
-                _defaultDistanceThreshold = 0.35; // Default threshold: Cosine distance <= 0.35
+                _defaultDistanceThreshold = 0.65; // Default threshold for Gemini embeddings
             }
         }
 
