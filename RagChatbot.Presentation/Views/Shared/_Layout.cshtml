@@ -100,14 +100,26 @@
             <!-- Nav links & User Info -->
             <div class="flex items-center gap-4">
                 <nav class="flex items-center gap-1 border-r border-slate-200 dark:border-slate-800 pr-4">
+                    @if (User.IsInRole("Admin"))
+                    {
+                        <a asp-controller="Admin" asp-action="Index"
+                           class="nav-link flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors">
+                            <i class="fa-solid fa-users text-xs"></i> QL Giảng viên
+                        </a>
+                    }
+                    
                     <a asp-controller="Home" asp-action="Index"
                        class="nav-link flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors">
                         <i class="fa-solid fa-comments text-xs"></i> Chat
                     </a>
-                    <a asp-controller="Document" asp-action="Index"
-                       class="nav-link flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors">
-                        <i class="fa-solid fa-folder-open text-xs"></i> Tài liệu
-                    </a>
+                    
+                    @if (User.IsInRole("Lecturer") || User.IsInRole("Admin"))
+                    {
+                        <a asp-controller="Document" asp-action="Index"
+                           class="nav-link flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors">
+                            <i class="fa-solid fa-folder-open text-xs"></i> Tài liệu
+                        </a>
+                    }
                 </nav>
                 
                 @if (User.Identity?.IsAuthenticated == true)

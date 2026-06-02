@@ -20,18 +20,19 @@ namespace RagChatbot.Business.Services
             _messageRepository = messageRepository;
         }
 
-        public async Task<ChatSessionDto?> GetSessionBySubjectIdAsync(int subjectId)
+        public async Task<ChatSessionDto?> GetSessionBySubjectIdAsync(int subjectId, int userId)
         {
-            var sessions = await _sessionRepository.FindAsync(s => s.SubjectId == subjectId);
+            var sessions = await _sessionRepository.FindAsync(s => s.SubjectId == subjectId && s.UserId == userId);
             return sessions.FirstOrDefault().ToDto();
         }
 
-        public async Task<ChatSessionDto> CreateSessionAsync(int subjectId, string? title = null)
+        public async Task<ChatSessionDto> CreateSessionAsync(int subjectId, int userId, string? title = null)
         {
             var dto = new CreateChatSessionDto
             {
                 SubjectId = subjectId,
-                Title = title ?? "New Session"
+                Title = title ?? "New Session",
+                UserId = userId
             };
             var session = dto.ToEntity();
             
@@ -71,9 +72,9 @@ namespace RagChatbot.Business.Services
             return message.ToDto()!;
         }
 
-        public async Task ClearHistoryAsync(int subjectId)
+        public async Task ClearHistoryAsync(int subjectId, int userId)
         {
-            var session = await _sessionRepository.FindAsync(s => s.SubjectId == subjectId);
+            var session = await _sessionRepository.FindAsync(s => s.SubjectId == subjectId && s.UserId == userId);
             var firstSession = session.FirstOrDefault();
             if (firstSession != null)
             {

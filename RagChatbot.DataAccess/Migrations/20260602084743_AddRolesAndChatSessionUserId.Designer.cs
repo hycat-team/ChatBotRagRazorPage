@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -12,9 +13,11 @@ using RagChatbot.DataAccess.Data;
 namespace RagChatbot.DataAccess.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260602084743_AddRolesAndChatSessionUserId")]
+    partial class AddRolesAndChatSessionUserId
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -31,14 +34,6 @@ namespace RagChatbot.DataAccess.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("FirstName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("LastName")
-                        .IsRequired()
-                        .HasColumnType("text");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -63,8 +58,6 @@ namespace RagChatbot.DataAccess.Migrations
                         new
                         {
                             Id = 1,
-                            FirstName = "Quản trị",
-                            LastName = "Hệ thống",
                             PasswordHash = "Y07d+n5+EQi6ce7n2ti3NIbfnCs1+TT9LE/LNjozxlc=",
                             Role = "Admin",
                             Username = "admin1"
@@ -72,8 +65,6 @@ namespace RagChatbot.DataAccess.Migrations
                         new
                         {
                             Id = 2,
-                            FirstName = "Nguyễn",
-                            LastName = "Giảng Viên 1",
                             PasswordHash = "Yz9PJlOwHiN+8KJrW6mbQYyJTl9BLR121umofM8/fNg=",
                             Role = "Lecturer",
                             Username = "lecturer1"
@@ -81,8 +72,6 @@ namespace RagChatbot.DataAccess.Migrations
                         new
                         {
                             Id = 3,
-                            FirstName = "Học",
-                            LastName = "Sinh 1",
                             PasswordHash = "q5AEtNl18HLfc3SmE3xdUM9B4HfRQy9LxxhIBjdDrhk=",
                             Role = "Student",
                             Username = "cus1"
@@ -90,8 +79,6 @@ namespace RagChatbot.DataAccess.Migrations
                         new
                         {
                             Id = 4,
-                            FirstName = "Học",
-                            LastName = "Sinh 2",
                             PasswordHash = "++RMfEkC1qU39CHjzrIMeIRvyI14mE55Nv/47HrPF1I=",
                             Role = "Student",
                             Username = "cus2"
@@ -184,14 +171,9 @@ namespace RagChatbot.DataAccess.Migrations
                     b.Property<DateTime>("UploadedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("UploaderId")
-                        .HasColumnType("integer");
-
                     b.HasKey("Id");
 
                     b.HasIndex("SubjectId");
-
-                    b.HasIndex("UploaderId");
 
                     b.ToTable("Documents");
                 });
@@ -294,15 +276,7 @@ namespace RagChatbot.DataAccess.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("RagChatbot.DataAccess.EntityModels.AppUser", "Uploader")
-                        .WithMany()
-                        .HasForeignKey("UploaderId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
                     b.Navigation("Subject");
-
-                    b.Navigation("Uploader");
                 });
 
             modelBuilder.Entity("RagChatbot.DataAccess.EntityModels.DocumentChunk", b =>

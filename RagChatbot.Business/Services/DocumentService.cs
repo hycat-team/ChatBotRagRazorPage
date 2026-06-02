@@ -37,6 +37,7 @@ namespace RagChatbot.Business.Services
             var entities = await _documentRepository.Query()
                 .Include(d => d.Subject)
                 .Include(d => d.DocumentChunks)
+                .Include(d => d.Uploader)
                 .Where(d => d.SubjectId == subjectId)
                 .ToListAsync();
             return entities.Select(d => d.ToDto()!).ToList();

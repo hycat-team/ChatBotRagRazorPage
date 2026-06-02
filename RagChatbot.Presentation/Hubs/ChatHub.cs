@@ -55,13 +55,13 @@ namespace RagChatbot.Presentation.Hubs
             {
                 var userId = GetCurrentUserId();
                 var subject = await _subjectService.GetByIdAsync(subjectId);
-                if (subject == null || subject.UserId != userId)
+                if (subject == null)
                 {
-                    await Clients.Caller.SendAsync("ReceiveError", "Unauthorized subject.");
+                    await Clients.Caller.SendAsync("ReceiveError", "Môn học không tồn tại.");
                     return;
                 }
 
-                var session = await _chatService.GetSessionBySubjectIdAsync(subjectId);
+                var session = await _chatService.GetSessionBySubjectIdAsync(subjectId, userId);
 
                 if (session != null)
                 {
@@ -93,16 +93,16 @@ namespace RagChatbot.Presentation.Hubs
             {
                 var userId = GetCurrentUserId();
                 var subject = await _subjectService.GetByIdAsync(subjectId);
-                if (subject == null || subject.UserId != userId)
+                if (subject == null)
                 {
-                    await Clients.Caller.SendAsync("ReceiveError", "Unauthorized subject.");
+                    await Clients.Caller.SendAsync("ReceiveError", "Môn học không tồn tại.");
                     return;
                 }
 
                 if (!Guid.TryParse(sessionIdStr, out var sessionId))
                 {
                     var title = message.Length > 50 ? message.Substring(0, 50) + "..." : message;
-                    var session = await _chatService.CreateSessionAsync(subjectId, title);
+                    var session = await _chatService.CreateSessionAsync(subjectId, userId, title);
                     sessionId = session.Id;
                     await Clients.Caller.SendAsync("SessionCreated", sessionId.ToString());
                 }

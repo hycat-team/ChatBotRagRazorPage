@@ -33,7 +33,9 @@ namespace RagChatbot.Presentation.Controllers
                 return RedirectToAction("Login", "Auth");
             }
 
-            var subjects = await _subjectService.GetAllByUserIdAsync(userId);
+            // Everyone (Admin, Lecturer, Student) sees all subjects
+            var subjects = await _subjectService.GetAllAsync();
+
             var viewModel = new RagChatbot.Presentation.ViewModels.HomeIndexViewModel
             {
                 Subjects = subjects
