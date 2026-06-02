@@ -244,8 +244,61 @@ namespace RagChatbot.Business.Services
 
         public async Task<string> RewriteQueryAsync(string originalQuery, IEnumerable<RagChatbot.Business.DTOs.ChatMessageDto> history)
         {
-            // Bypass rewriting to save tokens as requested by user
-            return await Task.FromResult(originalQuery);
+            try
+            {
+                var historyList = history?.ToList() ?? new List<RagChatbot.Business.DTOs.ChatMessageDto>();
+
+                // Build conversation history context
+                var historyContext = "";
+                if (historyList.Count > 0)
+                {
+                    var recentHistory = historyList.TakeLast(6);
+                    var historyLines = recentHistory.Select(m => $"{(m.Role == "user" ? "Người dùng" : "Trợ lý")}: {m.Content}");
+                    historyContext = string.Join("\n", historyLines);
+                }
+
+                var systemPrompt = @"Bạn là một trợ lý chuyên viết lại câu hỏi. Nhiệm vụ của bạn:
+1. **Sửa lỗi chính tả và ngữ pháp** trong câu hỏi của người dùng (ví dụ: ""trhờ gian"" → ""thời gian"", ""giao trinh"" → ""giáo trình"", ""mấy tinh"" → ""máy tính"").
+2. **Kết hợp ngữ cảnh từ lịch sử hội thoại** để tạo câu hỏi độc lập, rõ ràng (ví dụ: nếu trước đó đang nói về ""chương 3"" và người dùng hỏi ""nội dung chính là gì"" → ""Nội dung chính của chương 3 là gì?"").
+3. **Giữ nguyên ý nghĩa gốc** - không thêm thông tin mới hay thay đổi ý định câu hỏi.
+4. **Chỉ trả về câu hỏi đã viết lại**, không giải thích gì thêm.
+5. Nếu câu hỏi đã rõ ràng và không có lỗi, trả về nguyên văn.";
+
+                var chatHistory = new ChatHistory(systemPrompt);
+
+                if (!string.IsNullOrEmpty(historyContext))
+                {
+                    chatHistory.AddUserMessage($"Lịch sử hội thoại:\n{historyContext}\n\nCâu hỏi hiện tại cần viết lại: {originalQuery}");
+                }
+                else
+                {
+                    chatHistory.AddUserMessage($"Câu hỏi cần viết lại (sửa chính tả nếu có): {originalQuery}");
+                }
+
+                var executionSettings = new PromptExecutionSettings
+                {
+                    ExtensionData = new Dictionary<string, object>
+                    {
+                        { "max_tokens", 256 },
+                        { "temperature", 0.0 }
+                    }
+                };
+
+                var result = await _fastChatCompletion.GetChatMessageContentAsync(chatHistory, executionSettings, _kernel);
+                var rewrittenQuery = result?.Content?.Trim();
+
+                if (!string.IsNullOrWhiteSpace(rewrittenQuery))
+                {
+                    return rewrittenQuery;
+                }
+
+                return originalQuery;
+            }
+            catch (Exception)
+            {
+                // If rewriting fails, fall back to the original query silently
+                return originalQuery;
+            }
         }
     }
 }

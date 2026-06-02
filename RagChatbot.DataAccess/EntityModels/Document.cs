@@ -11,9 +11,11 @@ namespace RagChatbot.DataAccess.EntityModels
         public string FilePath { get; set; } = string.Empty;
         public string Status { get; set; } = "Pending"; // Pending, Processing, Indexed, Failed
         public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
+        public int UploaderId { get; set; }
 
         // Navigation Properties
         public Subject? Subject { get; set; }
+        public AppUser? Uploader { get; set; }
         public ICollection<DocumentChunk> DocumentChunks { get; set; } = new List<DocumentChunk>();
     }
 }

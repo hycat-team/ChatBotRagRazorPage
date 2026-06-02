@@ -40,10 +40,10 @@ namespace RagChatbot.Presentation.Controllers
             return int.TryParse(userIdStr, out int userId) ? userId : 0;
         }
 
+        [Authorize(Roles = "Admin,Lecturer")]
         public async Task<IActionResult> Index()
         {
-            var userId = GetCurrentUserId();
-            var subjects = await _subjectService.GetAllByUserIdAsync(userId);
+            var subjects = await _subjectService.GetAllAsync();
             var subjectIds = subjects.Select(s => s.Id).ToList();
             
             var documents = new List<RagChatbot.Business.DTOs.DocumentDto>();
@@ -68,6 +68,7 @@ namespace RagChatbot.Presentation.Controllers
             return View(viewModel);
         }
 
+        [Authorize(Roles = "Admin,Lecturer")]
         [HttpPost]
         public async Task<IActionResult> Upload(
             int subjectId,
@@ -77,7 +78,7 @@ namespace RagChatbot.Presentation.Controllers
         {
             var userId = GetCurrentUserId();
             var subject = await _subjectService.GetByIdAsync(subjectId);
-            if (subject == null || subject.UserId != userId)
+            if (subject == null)
             {
                 TempData["Error"] = "Invalid subject.";
                 return RedirectToAction(nameof(Index));
@@ -126,8 +127,9 @@ namespace RagChatbot.Presentation.Controllers
                     SubjectId = subjectId,
                     FileName = file.FileName,
                     FilePath = filePath,
-                    Status = "Pending",
-                    UploadedAt = DateTime.UtcNow
+                    Status = "Pending", // Sửa từ Processing thành Pending
+                    UploadedAt = DateTime.UtcNow,
+                    UploaderId = userId
                 };
 
                 await _documentService.AddAsync(document);
@@ -151,6 +153,7 @@ namespace RagChatbot.Presentation.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         public async Task<IActionResult> CreateSubject(string code, string name)
         {
@@ -176,25 +179,25 @@ namespace RagChatbot.Presentation.Controllers
 
         // ─── Quản lý Subject ─────────────────────────────────────────────────
 
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         public async Task<IActionResult> RenameSubject(int id, string name)
         {
-            var userId = GetCurrentUserId();
             var subject = await _subjectService.GetByIdAsync(id);
-            if (subject == null || subject.UserId != userId) return Json(new { success = false, message = "Subject not found or unauthorized." });
+            if (subject == null) return Json(new { success = false, message = "Subject not found." });
 
             subject.Name = name.Trim();
             await _subjectService.UpdateAsync(subject);
             return Json(new { success = true, name = subject.Name });
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPost]
         public async Task<IActionResult> DeleteSubject(int id)
         {
-            var userId = GetCurrentUserId();
             var subject = await _subjectService.GetByIdAsync(id);
 
-            if (subject == null || subject.UserId != userId) return Json(new { success = false, message = "Subject not found or unauthorized." });
+            if (subject == null) return Json(new { success = false, message = "Subject not found." });
 
             // Note: EF Core cascade delete will handle related documents, chunks, sessions, and messages if configured properly.
             // If manual cascade is required, it should be implemented in the SubjectService.
@@ -204,6 +207,7 @@ namespace RagChatbot.Presentation.Controllers
 
         // ─── Quản lý Document ────────────────────────────────────────────────
 
+        [Authorize(Roles = "Admin,Lecturer")]
         [HttpPost]
         public async Task<IActionResult> DeleteDocument(int id)
         {
@@ -212,8 +216,10 @@ namespace RagChatbot.Presentation.Controllers
 
             if (document == null) return Json(new { success = false, message = "Document not found." });
             
-            var subject = await _subjectService.GetByIdAsync(document.SubjectId);
-            if (subject == null || subject.UserId != userId) return Json(new { success = false, message = "Document unauthorized." });
+            if (User.IsInRole("Lecturer") && document.UploaderId != userId)
+            {
+                return Json(new { success = false, message = "Bạn không có quyền xóa tài liệu của người khác." });
+            }
 
             await _documentService.DeleteAsync(id);
             return Json(new { success = true });
@@ -225,32 +231,39 @@ namespace RagChatbot.Presentation.Controllers
         [HttpGet]
         public async Task<IActionResult> GetSubjectDocuments(int subjectId)
         {
-            var userId = GetCurrentUserId();
-            var subject = await _subjectService.GetByIdAsync(subjectId);
-            if (subject == null || subject.UserId != userId) return Json(new List<object>());
-
             var docs = await _documentService.GetBySubjectIdAsync(subjectId);
             var indexedDocs = docs
                 .Where(d => d.Status == "Indexed")
-                .Select(d => new { d.Id, d.FileName, d.UploadedAt })
+                .Select(d => new { d.Id, d.FileName, d.UploadedAt, d.UploaderFullName })
                 .OrderBy(d => d.FileName)
                 .ToList();
 
             return Json(indexedDocs);
         }
 
+        [Authorize(Roles = "Admin,Lecturer")]
         [HttpGet]
         public async Task<IActionResult> GetDocumentChunks(int id, [FromServices] IDocumentChunkRepository chunkRepository)
         {
             var userId = GetCurrentUserId();
             var document = await _documentService.GetByIdAsync(id);
-            if (document == null) return Json(new { success = false, message = "Document not found." });
-
-            var subject = await _subjectService.GetByIdAsync(document.SubjectId);
-            if (subject == null || subject.UserId != userId) return Json(new { success = false, message = "Unauthorized." });
+            if (document == null)
+            {
+                return Json(new { success = false, message = "Tài liệu không tồn tại." });
+            }
+            
+            // Allow if Admin, or if Lecturer who owns the document
+            if (User.IsInRole("Lecturer") && document.UploaderId != userId)
+            {
+                return Json(new { success = false, message = "Bạn không có quyền xem tài liệu của người khác." });
+            }
 
             var chunks = await chunkRepository.FindAsync(c => c.DocumentId == id);
-            var result = chunks.Select(c => new { c.Id, c.Content, c.PageNumber }).OrderBy(c => c.PageNumber).ThenBy(c => c.Id).ToList();
+            var result = chunks.Select(c => new { 
+                id = c.Id, 
+                content = c.Content, 
+                pageNumber = c.PageNumber 
+            }).OrderBy(c => c.pageNumber).ThenBy(c => c.id).ToList();
 
             return Json(new { success = true, chunks = result });
         }

@@ -33,6 +33,14 @@ namespace RagChatbot.Business.Services
             return entities.Select(s => s.ToDto()!).ToList();
         }
 
+        public async Task<IEnumerable<SubjectDto>> GetAllAsync()
+        {
+            var entities = await _subjectRepository.Query()
+                .Include(s => s.Documents)
+                .ToListAsync();
+            return entities.Select(s => s.ToDto()!).ToList();
+        }
+
         public async Task<SubjectDto> AddAsync(CreateSubjectDto dto)
         {
             var entity = dto.ToEntity();

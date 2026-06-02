@@ -11,6 +11,8 @@ namespace RagChatbot.Business.DTOs
         public string FilePath { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public DateTime UploadedAt { get; set; }
+        public string UploaderFullName { get; set; } = string.Empty;
+        public int UploaderId { get; set; }
         
         public SubjectDto? Subject { get; set; }
         public ICollection<DocumentChunkDto> DocumentChunks { get; set; } = new List<DocumentChunkDto>();
@@ -23,5 +25,6 @@ namespace RagChatbot.Business.DTOs
         public string FilePath { get; set; } = string.Empty;
         public string Status { get; set; } = "Pending";
         public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
+        public int UploaderId { get; set; }
     }
 }

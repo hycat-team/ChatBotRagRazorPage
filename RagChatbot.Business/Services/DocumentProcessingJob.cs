@@ -54,8 +54,9 @@ namespace RagChatbot.Business.Services
             var driveService = scope.ServiceProvider.GetRequiredService<IGoogleDriveService>();
             var localStorage = scope.ServiceProvider.GetRequiredService<ILocalStorageService>();
 
+            var timeoutThreshold = DateTime.UtcNow.AddHours(-1);
             var document = await docRepo.Query()
-                .Where(d => d.Status == "Pending")
+                .Where(d => d.Status == "Pending" || (d.Status == "Processing" && d.UploadedAt < timeoutThreshold))
                 .FirstOrDefaultAsync(stoppingToken);
 
             if (document == null) return;
@@ -147,7 +148,7 @@ namespace RagChatbot.Business.Services
                 // Step 1: Extract all text chunks from all pages concurrently
                 var allChunksBag = new System.Collections.Concurrent.ConcurrentBag<(int PageNumber, int ChunkIndex, string Text)>();
                 
-                await Parallel.ForEachAsync(pageList, new ParallelOptions { MaxDegreeOfParallelism = 2, CancellationToken = stoppingToken }, async (page, ct) =>
+                await Parallel.ForEachAsync(pageList, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount, CancellationToken = stoppingToken }, async (page, ct) =>
                 {
                     var chunks = await chunkingService.ChunkTextAsync(page.Text);
                     for (int i = 0; i < chunks.Count; i++)
@@ -158,6 +159,15 @@ namespace RagChatbot.Business.Services
 
                 var allChunks = allChunksBag.OrderBy(c => c.PageNumber).ThenBy(c => c.ChunkIndex).Select(c => (c.PageNumber, c.Text)).ToList();
 
+                if (allChunks.Count == 0)
+                {
+                    _logger.LogWarning($"Document {document.FileName} produced 0 chunks.");
+                    document.Status = "Failed_NoText";
+                    docRepo.Update(document);
+                    await docRepo.SaveChangesAsync();
+                    return;
+                }
+
                 _logger.LogInformation($"Extracted {allChunks.Count} chunks. Starting batch embedding...");
 
                 // Step 2: Generate all embeddings in one batched call (100 chunks per HTTP request)
@@ -165,17 +175,18 @@ namespace RagChatbot.Business.Services
                 var embeddings = await aiService.GenerateEmbeddingsAsync(chunkTexts);
 
                 // Step 3: Save all chunks with their embeddings
+                var chunksToSave = new List<DocumentChunk>(allChunks.Count);
                 for (int i = 0; i < allChunks.Count; i++)
                 {
-                    var documentChunk = new DocumentChunk
+                    chunksToSave.Add(new DocumentChunk
                     {
                         DocumentId = document.Id,
                         Content = allChunks[i].Text,
                         PageNumber = allChunks[i].PageNumber,
                         Embedding = new Vector(embeddings[i].ToArray())
-                    };
-                    await chunkRepo.AddAsync(documentChunk);
+                    });
                 }
+                await chunkRepo.AddRangeAsync(chunksToSave);
 
                 document.Status = "Indexed";
                 docRepo.Update(document);
