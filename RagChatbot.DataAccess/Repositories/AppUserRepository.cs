@@ -12,9 +12,9 @@ namespace RagChatbot.DataAccess.Repositories
         {
         }
 
-        public async Task<AppUser?> GetByUsernameAsync(string username)
+        public async Task<AppUser?> GetByEmailAsync(string email)
         {
-            return await _dbSet.FirstOrDefaultAsync(u => u.Username == username);
+            return await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
         }
     }
 }

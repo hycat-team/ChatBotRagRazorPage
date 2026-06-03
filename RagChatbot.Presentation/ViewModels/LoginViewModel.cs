@@ -4,8 +4,9 @@ namespace RagChatbot.Presentation.ViewModels
 {
     public class LoginViewModel
     {
-        [Required(ErrorMessage = "Tên đăng nhập là bắt buộc")]
-        public string Username { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Email là bắt buộc")]
+        [EmailAddress(ErrorMessage = "Định dạng email không hợp lệ")]
+        public string Email { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Mật khẩu là bắt buộc")]
         [DataType(DataType.Password)]

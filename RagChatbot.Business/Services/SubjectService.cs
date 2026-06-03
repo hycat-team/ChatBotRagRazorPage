@@ -20,7 +20,10 @@ namespace RagChatbot.Business.Services
 
         public async Task<SubjectDto?> GetByIdAsync(int id)
         {
-            var entity = await _subjectRepository.GetByIdAsync(id);
+            var entity = await _subjectRepository.Query()
+                .Include(s => s.Documents)
+                .Include(s => s.Department)
+                .FirstOrDefaultAsync(s => s.Id == id);
             return entity.ToDto();
         }
 
@@ -28,6 +31,7 @@ namespace RagChatbot.Business.Services
         {
             var entities = await _subjectRepository.Query()
                 .Include(s => s.Documents)
+                .Include(s => s.Department)
                 .Where(s => s.UserId == userId)
                 .ToListAsync();
             return entities.Select(s => s.ToDto()!).ToList();
@@ -37,6 +41,7 @@ namespace RagChatbot.Business.Services
         {
             var entities = await _subjectRepository.Query()
                 .Include(s => s.Documents)
+                .Include(s => s.Department)
                 .ToListAsync();
             return entities.Select(s => s.ToDto()!).ToList();
         }

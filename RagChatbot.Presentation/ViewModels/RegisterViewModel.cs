@@ -4,10 +4,9 @@ namespace RagChatbot.Presentation.ViewModels
 {
     public class RegisterViewModel
     {
-        [Required(ErrorMessage = "Tên đăng nhập là bắt buộc")]
-        [StringLength(50, MinimumLength = 3, ErrorMessage = "Tên đăng nhập phải từ 3 đến 50 ký tự")]
-        [RegularExpression("^[a-zA-Z0-9_]*$", ErrorMessage = "Tên đăng nhập chỉ chứa chữ cái, số và dấu gạch dưới")]
-        public string Username { get; set; } = string.Empty;
+        [Required(ErrorMessage = "Email là bắt buộc")]
+        [EmailAddress(ErrorMessage = "Định dạng email không hợp lệ")]
+        public string Email { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Mật khẩu là bắt buộc")]
         [StringLength(100, MinimumLength = 6, ErrorMessage = "Mật khẩu phải từ 6 ký tự trở lên")]

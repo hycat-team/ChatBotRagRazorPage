@@ -17,7 +17,9 @@ namespace RagChatbot.Business.Mappings
                 Code = entity.Code,
                 Name = entity.Name,
                 CreatedAt = entity.CreatedAt,
-                UserId = entity.UserId
+                UserId = entity.UserId,
+                DepartmentId = entity.DepartmentId,
+                DepartmentName = entity.Department?.Name ?? string.Empty
             };
             if (includeRelations && entity.Documents != null)
             {
@@ -34,6 +36,7 @@ namespace RagChatbot.Business.Mappings
                 Code = dto.Code,
                 Name = dto.Name,
                 UserId = dto.UserId,
+                DepartmentId = dto.DepartmentId,
                 CreatedAt = DateTime.UtcNow
             };
         }
@@ -48,6 +51,8 @@ namespace RagChatbot.Business.Mappings
                 SubjectId = entity.SubjectId,
                 FileName = entity.FileName,
                 FilePath = entity.FilePath,
+                DisplayName = entity.DisplayName,
+                IsActive = entity.IsActive,
                 Status = entity.Status,
                 UploadedAt = entity.UploadedAt,
                 UploaderFullName = entity.Uploader != null ? $"{entity.Uploader.LastName} {entity.Uploader.FirstName}".Trim() : "Không xác định",
@@ -69,6 +74,8 @@ namespace RagChatbot.Business.Mappings
                 SubjectId = dto.SubjectId,
                 FileName = dto.FileName,
                 FilePath = dto.FilePath,
+                DisplayName = string.IsNullOrWhiteSpace(dto.DisplayName) ? dto.FileName : dto.DisplayName,
+                IsActive = dto.IsActive,
                 Status = dto.Status,
                 UploadedAt = dto.UploadedAt,
                 UploaderId = dto.UploaderId

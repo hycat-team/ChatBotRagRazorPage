@@ -58,6 +58,8 @@ namespace RagChatbot.Business.Services
             {
                 entity.FileName = dto.FileName;
                 entity.FilePath = dto.FilePath;
+                entity.DisplayName = dto.DisplayName;
+                entity.IsActive = dto.IsActive;
                 entity.Status = dto.Status;
                 _documentRepository.Update(entity);
                 await _documentRepository.SaveChangesAsync();

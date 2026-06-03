@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -12,9 +13,11 @@ using RagChatbot.DataAccess.Data;
 namespace RagChatbot.DataAccess.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260603031428_AddRulesUpdates")]
+    partial class AddRulesUpdates
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -32,16 +35,6 @@ namespace RagChatbot.DataAccess.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("DailyQueryCount")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("DepartmentId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasColumnType("text");
@@ -53,9 +46,6 @@ namespace RagChatbot.DataAccess.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<DateTime>("LastQueryDate")
-                        .HasColumnType("timestamp with time zone");
-
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("text");
@@ -64,11 +54,13 @@ namespace RagChatbot.DataAccess.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("DepartmentId");
-
-                    b.HasIndex("Email")
+                    b.HasIndex("Username")
                         .IsUnique();
 
                     b.ToTable("AppUsers");
@@ -77,98 +69,43 @@ namespace RagChatbot.DataAccess.Migrations
                         new
                         {
                             Id = 1,
-                            DailyQueryCount = 0,
-                            Email = "admin@gmail.com",
                             FirstName = "Quản trị",
                             IsActive = true,
                             LastName = "Hệ thống",
-                            LastQueryDate = new DateTime(2026, 6, 3, 6, 1, 30, 67, DateTimeKind.Utc).AddTicks(6876),
                             PasswordHash = "Y07d+n5+EQi6ce7n2ti3NIbfnCs1+TT9LE/LNjozxlc=",
-                            Role = "Admin"
+                            Role = "Admin",
+                            Username = "admin1"
                         },
                         new
                         {
                             Id = 2,
-                            DailyQueryCount = 0,
-                            DepartmentId = 1,
-                            Email = "lecturer@gmail.com",
                             FirstName = "Nguyễn",
                             IsActive = true,
                             LastName = "Giảng Viên 1",
-                            LastQueryDate = new DateTime(2026, 6, 3, 6, 1, 30, 67, DateTimeKind.Utc).AddTicks(7147),
                             PasswordHash = "Yz9PJlOwHiN+8KJrW6mbQYyJTl9BLR121umofM8/fNg=",
-                            Role = "Lecturer"
+                            Role = "Lecturer",
+                            Username = "lecturer1"
                         },
                         new
                         {
                             Id = 3,
-                            DailyQueryCount = 0,
-                            Email = "student1@gmail.com",
                             FirstName = "Học",
                             IsActive = true,
                             LastName = "Sinh 1",
-                            LastQueryDate = new DateTime(2026, 6, 3, 6, 1, 30, 67, DateTimeKind.Utc).AddTicks(7159),
                             PasswordHash = "q5AEtNl18HLfc3SmE3xdUM9B4HfRQy9LxxhIBjdDrhk=",
-                            Role = "Student"
+                            Role = "Student",
+                            Username = "cus1"
                         },
                         new
                         {
                             Id = 4,
-                            DailyQueryCount = 0,
-                            Email = "student2@gmail.com",
                             FirstName = "Học",
                             IsActive = true,
                             LastName = "Sinh 2",
-                            LastQueryDate = new DateTime(2026, 6, 3, 6, 1, 30, 67, DateTimeKind.Utc).AddTicks(7167),
                             PasswordHash = "++RMfEkC1qU39CHjzrIMeIRvyI14mE55Nv/47HrPF1I=",
-                            Role = "Student"
-                        },
-                        new
-                        {
-                            Id = 100,
-                            DailyQueryCount = 0,
-                            DepartmentId = 1,
-                            Email = "hod@gmail.com",
-                            FirstName = "Trưởng",
-                            IsActive = true,
-                            LastName = "Khoa CNTT",
-                            LastQueryDate = new DateTime(2026, 6, 3, 6, 1, 30, 67, DateTimeKind.Utc).AddTicks(7175),
-                            PasswordHash = "Cl7afaR0DnYdIJfugd6f3iJedk+4iQxVU2eK8vcBa6w=",
-                            Role = "HeadOfDepartment"
+                            Role = "Student",
+                            Username = "cus2"
                         });
-                });
-
-            modelBuilder.Entity("RagChatbot.DataAccess.EntityModels.AuditLog", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("ActorId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Details")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("TargetObjectId")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("Timestamp")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ActorId");
-
-                    b.ToTable("AuditLogs");
                 });
 
             modelBuilder.Entity("RagChatbot.DataAccess.EntityModels.ChatMessage", b =>
@@ -229,39 +166,6 @@ namespace RagChatbot.DataAccess.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("ChatSessions");
-                });
-
-            modelBuilder.Entity("RagChatbot.DataAccess.EntityModels.Department", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Description")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Departments");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            CreatedAt = new DateTime(2026, 6, 3, 6, 1, 30, 67, DateTimeKind.Utc).AddTicks(6756),
-                            Description = "Khoa CNTT",
-                            Name = "Công nghệ Thông tin"
-                        });
                 });
 
             modelBuilder.Entity("RagChatbot.DataAccess.EntityModels.Document", b =>
@@ -352,9 +256,6 @@ namespace RagChatbot.DataAccess.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int?>("DepartmentId")
-                        .HasColumnType("integer");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("text");
@@ -364,50 +265,12 @@ namespace RagChatbot.DataAccess.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("DepartmentId");
-
                     b.HasIndex("UserId");
 
                     b.HasIndex("Code", "UserId")
                         .IsUnique();
 
                     b.ToTable("Subjects");
-                });
-
-            modelBuilder.Entity("RagChatbot.DataAccess.EntityModels.SubjectAssignment", b =>
-                {
-                    b.Property<int>("SubjectId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("LecturerId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("SubjectId", "LecturerId");
-
-                    b.HasIndex("LecturerId");
-
-                    b.ToTable("SubjectAssignments");
-                });
-
-            modelBuilder.Entity("RagChatbot.DataAccess.EntityModels.AppUser", b =>
-                {
-                    b.HasOne("RagChatbot.DataAccess.EntityModels.Department", "Department")
-                        .WithMany("Users")
-                        .HasForeignKey("DepartmentId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Department");
-                });
-
-            modelBuilder.Entity("RagChatbot.DataAccess.EntityModels.AuditLog", b =>
-                {
-                    b.HasOne("RagChatbot.DataAccess.EntityModels.AppUser", "Actor")
-                        .WithMany()
-                        .HasForeignKey("ActorId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .IsRequired();
-
-                    b.Navigation("Actor");
                 });
 
             modelBuilder.Entity("RagChatbot.DataAccess.EntityModels.ChatMessage", b =>
@@ -472,58 +335,23 @@ namespace RagChatbot.DataAccess.Migrations
 
             modelBuilder.Entity("RagChatbot.DataAccess.EntityModels.Subject", b =>
                 {
-                    b.HasOne("RagChatbot.DataAccess.EntityModels.Department", "Department")
-                        .WithMany("Subjects")
-                        .HasForeignKey("DepartmentId")
-                        .OnDelete(DeleteBehavior.Cascade);
-
                     b.HasOne("RagChatbot.DataAccess.EntityModels.AppUser", "User")
                         .WithMany("Subjects")
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Department");
-
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("RagChatbot.DataAccess.EntityModels.SubjectAssignment", b =>
-                {
-                    b.HasOne("RagChatbot.DataAccess.EntityModels.AppUser", "Lecturer")
-                        .WithMany("SubjectAssignments")
-                        .HasForeignKey("LecturerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("RagChatbot.DataAccess.EntityModels.Subject", "Subject")
-                        .WithMany("Assignments")
-                        .HasForeignKey("SubjectId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Lecturer");
-
-                    b.Navigation("Subject");
                 });
 
             modelBuilder.Entity("RagChatbot.DataAccess.EntityModels.AppUser", b =>
                 {
-                    b.Navigation("SubjectAssignments");
-
                     b.Navigation("Subjects");
                 });
 
             modelBuilder.Entity("RagChatbot.DataAccess.EntityModels.ChatSession", b =>
                 {
                     b.Navigation("Messages");
-                });
-
-            modelBuilder.Entity("RagChatbot.DataAccess.EntityModels.Department", b =>
-                {
-                    b.Navigation("Subjects");
-
-                    b.Navigation("Users");
                 });
 
             modelBuilder.Entity("RagChatbot.DataAccess.EntityModels.Document", b =>
@@ -533,8 +361,6 @@ namespace RagChatbot.DataAccess.Migrations
 
             modelBuilder.Entity("RagChatbot.DataAccess.EntityModels.Subject", b =>
                 {
-                    b.Navigation("Assignments");
-
                     b.Navigation("ChatSessions");
 
                     b.Navigation("Documents");
