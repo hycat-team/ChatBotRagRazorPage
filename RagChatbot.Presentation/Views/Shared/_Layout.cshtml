@@ -108,10 +108,13 @@
                         </a>
                     }
                     
-                    <a asp-controller="Home" asp-action="Index"
-                       class="nav-link flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors">
-                        <i class="fa-solid fa-comments text-xs"></i> Chat
-                    </a>
+                    @if (!User.IsInRole("Lecturer") && !User.IsInRole("HeadOfDepartment"))
+                    {
+                        <a asp-controller="Home" asp-action="Index"
+                           class="nav-link flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors">
+                            <i class="fa-solid fa-comments text-xs"></i> Chat
+                        </a>
+                    }
                     
                     @if (User.IsInRole("Lecturer") || User.IsInRole("HeadOfDepartment"))
                     {

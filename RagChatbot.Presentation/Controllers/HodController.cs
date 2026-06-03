@@ -26,7 +26,8 @@ namespace RagChatbot.Presentation.Controllers
 
         private async Task<AppUser?> GetCurrentUser()
         {
-            if (int.TryParse(User.Identity!.Name, out int userId))
+            var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(userIdStr, out int userId))
             {
                 return await _userRepository.GetByIdAsync(userId);
             }

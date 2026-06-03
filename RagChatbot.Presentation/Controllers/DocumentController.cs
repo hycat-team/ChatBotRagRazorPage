@@ -47,16 +47,21 @@ namespace RagChatbot.Presentation.Controllers
             return int.TryParse(userIdStr, out int userId) ? userId : 0;
         }
 
-        [Authorize(Roles = "Lecturer,HeadOfDepartment")]
+        [Authorize(Roles = "Admin,Lecturer,HeadOfDepartment")]
         public async Task<IActionResult> Index()
         {
             var userId = GetCurrentUserId();
+            var isAdmin = User.IsInRole("Admin");
             var isHod = User.IsInRole("HeadOfDepartment");
             var isLecturer = User.IsInRole("Lecturer");
 
             var subjectsQuery = _context.Subjects.Include(s => s.Documents).AsQueryable();
 
-            if (isHod)
+            if (isAdmin)
+            {
+                // Admin sees all subjects
+            }
+            else if (isHod)
             {
                 var hodUser = _context.AppUsers.FirstOrDefault(u => u.Id == userId);
                 if (hodUser != null && hodUser.DepartmentId != null)
@@ -270,7 +275,7 @@ namespace RagChatbot.Presentation.Controllers
 
         // ─── Quản lý Document ────────────────────────────────────────────────
 
-        [Authorize(Roles = "HeadOfDepartment,Lecturer")]
+        [Authorize(Roles = "Admin,HeadOfDepartment,Lecturer")]
         [HttpPost]
         public async Task<IActionResult> DeleteDocument(int id)
         {
@@ -279,7 +284,7 @@ namespace RagChatbot.Presentation.Controllers
 
             if (document == null) return Json(new { success = false, message = "Document not found." });
             
-            if (document.UploaderId != userId)
+            if (document.UploaderId != userId && !User.IsInRole("Admin"))
             {
                 return Json(new { success = false, message = "Bạn không có quyền xóa tài liệu của người khác." });
             }
@@ -289,7 +294,7 @@ namespace RagChatbot.Presentation.Controllers
             return Json(new { success = true });
         }
 
-        [Authorize(Roles = "HeadOfDepartment,Lecturer")]
+        [Authorize(Roles = "Admin,HeadOfDepartment,Lecturer")]
         [HttpPost]
         public async Task<IActionResult> ToggleDocumentActive(int id)
         {
@@ -298,9 +303,20 @@ namespace RagChatbot.Presentation.Controllers
 
             if (document == null) return Json(new { success = false, message = "Document not found." });
             
-            if (document.UploaderId != userId)
+            bool canToggle = document.UploaderId == userId || User.IsInRole("Admin");
+            if (!canToggle && User.IsInRole("HeadOfDepartment"))
             {
-                return Json(new { success = false, message = "Bạn không có quyền sửa tài liệu của người khác." });
+                var subject = await _subjectService.GetByIdAsync(document.SubjectId);
+                var hodUser = _context.AppUsers.FirstOrDefault(u => u.Id == userId);
+                if (subject != null && subject.DepartmentId == hodUser?.DepartmentId)
+                {
+                    canToggle = true;
+                }
+            }
+
+            if (!canToggle)
+            {
+                return Json(new { success = false, message = "Bạn không có quyền sửa tài liệu này." });
             }
 
             document.IsActive = !document.IsActive;
@@ -308,7 +324,7 @@ namespace RagChatbot.Presentation.Controllers
             return Json(new { success = true, isActive = document.IsActive });
         }
 
-        [Authorize(Roles = "HeadOfDepartment,Lecturer")]
+        [Authorize(Roles = "Admin,HeadOfDepartment,Lecturer")]
         [HttpPost]
         public async Task<IActionResult> RenameDocument(int id, string displayName)
         {
@@ -317,9 +333,9 @@ namespace RagChatbot.Presentation.Controllers
 
             if (document == null) return Json(new { success = false, message = "Document not found." });
             
-            if (document.UploaderId != userId)
+            if (document.UploaderId != userId && !User.IsInRole("Admin"))
             {
-                return Json(new { success = false, message = "Bạn không có quyền sửa tài liệu của người khác." });
+                return Json(new { success = false, message = "Bạn không có quyền đổi tên tài liệu của người khác." });
             }
 
             document.DisplayName = displayName.Trim();
@@ -348,7 +364,7 @@ namespace RagChatbot.Presentation.Controllers
             return Json(indexedDocs);
         }
 
-        [Authorize(Roles = "HeadOfDepartment,Lecturer")]
+        [Authorize(Roles = "Admin,HeadOfDepartment,Lecturer")]
         [HttpGet]
         public async Task<IActionResult> GetDocumentChunks(int id, [FromServices] IDocumentChunkRepository chunkRepository)
         {
@@ -359,9 +375,20 @@ namespace RagChatbot.Presentation.Controllers
                 return Json(new { success = false, message = "Tài liệu không tồn tại." });
             }
             
-            if (document.UploaderId != userId)
+            bool canView = document.UploaderId == userId || User.IsInRole("Admin");
+            if (!canView && User.IsInRole("HeadOfDepartment"))
             {
-                return Json(new { success = false, message = "Bạn không có quyền xem tài liệu của người khác." });
+                var subject = await _subjectService.GetByIdAsync(document.SubjectId);
+                var hodUser = _context.AppUsers.FirstOrDefault(u => u.Id == userId);
+                if (subject != null && subject.DepartmentId == hodUser?.DepartmentId)
+                {
+                    canView = true;
+                }
+            }
+
+            if (!canView)
+            {
+                return Json(new { success = false, message = "Bạn không có quyền xem tài liệu này." });
             }
 
             var chunks = await chunkRepository.FindAsync(c => c.DocumentId == id);

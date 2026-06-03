@@ -47,18 +47,22 @@ namespace RagChatbot.Presentation.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> CreateUsers(string userData, string role, int? departmentId)
+        public async Task<IActionResult> CreateUsers(Microsoft.AspNetCore.Http.IFormFile file, string role, int? departmentId)
         {
-            if (string.IsNullOrWhiteSpace(userData))
+            if (file == null || file.Length == 0)
             {
-                TempData["Error"] = "Vui lòng nhập dữ liệu tài khoản.";
+                TempData["Error"] = "Vui lòng chọn file chứa dữ liệu tài khoản.";
                 return RedirectToAction("Index");
             }
 
+            using var reader = new System.IO.StreamReader(file.OpenReadStream());
+            var userData = await reader.ReadToEndAsync();
             var lines = userData.Split(new[] { '\r', '\n' }, System.StringSplitOptions.RemoveEmptyEntries);
             int successCount = 0;
             int failCount = 0;
             var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+
+            var emailService = HttpContext.RequestServices.GetService(typeof(RagChatbot.Business.Interfaces.IEmailService)) as RagChatbot.Business.Interfaces.IEmailService;
 
             foreach (var line in lines)
             {
@@ -90,6 +94,15 @@ namespace RagChatbot.Presentation.Controllers
                         }
                     }
 
+                    if (emailService != null)
+                    {
+                        await emailService.SendEmailAsync(
+                            email, 
+                            "Tài khoản hệ thống RAG Chatbot", 
+                            $"Xin chào {lastName} {firstName},\n\nTài khoản của bạn đã được tạo.\nEmail đăng nhập: {email}\nMật khẩu mặc định: {password}\n\nVui lòng đăng nhập và đổi mật khẩu."
+                        );
+                    }
+
                     successCount++;
                     await _auditLogService.LogAsync(adminId, $"Create {role}", "", $"Email: {email}");
                 }
@@ -101,11 +114,11 @@ namespace RagChatbot.Presentation.Controllers
 
             if (failCount > 0)
             {
-                TempData["Error"] = $"Tạo thành công {successCount} tài khoản. Thất bại {failCount} tài khoản (có thể do trùng lặp hoặc sai định dạng).";
+                TempData["Error"] = $"Tạo thành công {successCount} tài khoản. Bỏ qua {failCount} tài khoản do trùng lặp Email đã tồn tại hoặc sai định dạng.";
             }
             else
             {
-                TempData["Success"] = $"Đã tạo thành công {successCount} tài khoản. Thất bại: {failCount}.";
+                TempData["Success"] = $"Đã tạo thành công toàn bộ {successCount} tài khoản.";
             }
             return RedirectToAction("Index");
         }

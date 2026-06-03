@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: Password123!
       POSTGRES_DB: RagChatbotDb
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     restart: unless-stopped

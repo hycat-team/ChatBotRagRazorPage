@@ -275,7 +275,7 @@ Tuyệt đối không sử dụng kiến thức bên ngoài. Nếu không có th
 ";
 
                 // 5. Get Streaming Response
-                var stream = _aiService.GetChatStreamingResponseAsync(systemPrompt, standaloneQuery, null, cts.Token);
+                var stream = _aiService.GetChatStreamingResponseAsync(systemPrompt, standaloneQuery, history, cts.Token);
 
                 var fullResponse = new System.Text.StringBuilder();
                 bool wasCanceled = false;

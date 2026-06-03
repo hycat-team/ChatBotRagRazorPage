@@ -48,11 +48,11 @@ namespace RagChatbot.Business.Services
 
             if (isGoogleKey && string.IsNullOrEmpty(endpoint))
             {
-                if (string.IsNullOrEmpty(chatModel)) chatModel = "gemini-1.5-pro";
-                if (string.IsNullOrEmpty(fastChatModel)) fastChatModel = "gemini-1.5-flash";
+                if (string.IsNullOrEmpty(chatModel)) chatModel = "gemini-2.5-pro";
+                if (string.IsNullOrEmpty(fastChatModel)) fastChatModel = "gemini-2.5-flash";
                 
                 var embeddingModels = string.IsNullOrEmpty(embeddingModelString) 
-                    ? new[] { "text-embedding-004" } 
+                    ? new[] { "gemini-embedding-2-preview" } 
                     : embeddingModelString.Split(',').Select(m => m.Trim()).ToArray();
 
                 builder.AddGoogleAIGeminiChatCompletion(chatModel, firstApiKey!);
@@ -93,7 +93,7 @@ namespace RagChatbot.Business.Services
             if (isGoogleKey && string.IsNullOrEmpty(endpoint))
             {
                 var embeddingModels = string.IsNullOrEmpty(embeddingModelString) 
-                    ? new[] { "text-embedding-004" } 
+                    ? new[] { "gemini-embedding-2-preview" } 
                     : embeddingModelString.Split(',').Select(m => m.Trim()).ToArray();
                     
                 _embeddingGeneration = new GoogleEmbeddingService(embeddingModels, apiKeys);

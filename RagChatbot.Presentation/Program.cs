@@ -71,6 +71,7 @@ builder.Services.AddSingleton<IGoogleDriveService, GoogleDriveService>();
 builder.Services.AddSingleton<ILocalStorageService, LocalStorageService>();
 builder.Services.AddScoped<IVectorSearchService, VectorSearchService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
+builder.Services.AddScoped<IEmailService, DummyEmailService>();
 
 // Register Background Service
 builder.Services.AddHostedService<DocumentProcessingJob>();
