@@ -22,6 +22,10 @@ namespace RagChatbot.Presentation.Controllers
         {
             if (User.Identity?.IsAuthenticated == true)
             {
+                if (User.IsInRole("Lecturer") || User.IsInRole("HeadOfDepartment"))
+                {
+                    return RedirectToAction("Index", "Document");
+                }
                 return RedirectToAction("Index", "Home");
             }
             return View(new RagChatbot.Presentation.ViewModels.LoginViewModel { ReturnUrl = returnUrl });
@@ -35,17 +39,23 @@ namespace RagChatbot.Presentation.Controllers
                 return View(model);
             }
 
-            var user = await _authService.AuthenticateAsync(model.Username, model.Password);
+            var user = await _authService.AuthenticateAsync(model.Email, model.Password);
             if (user == null)
             {
-                ViewBag.Error = "Tên đăng nhập hoặc mật khẩu không chính xác.";
+                ViewBag.Error = "Email hoặc mật khẩu không chính xác.";
+                return View(model);
+            }
+
+            if (!user.IsActive)
+            {
+                ViewBag.Error = "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ bộ phận hỗ trợ.";
                 return View(model);
             }
 
             var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(ClaimTypes.Name, user.Username),
+                new Claim(ClaimTypes.Name, user.Email),
                 new Claim(ClaimTypes.Role, user.Role)
             };
 
@@ -65,6 +75,12 @@ namespace RagChatbot.Presentation.Controllers
             {
                 return Redirect(model.ReturnUrl);
             }
+
+            if (user.Role == "Lecturer" || user.Role == "HeadOfDepartment")
+            {
+                return RedirectToAction("Index", "Document");
+            }
+
             return RedirectToAction("Index", "Home");
         }
 
@@ -78,29 +94,7 @@ namespace RagChatbot.Presentation.Controllers
         [HttpGet]
         public IActionResult Register()
         {
-            if (User.Identity?.IsAuthenticated == true)
-            {
-                return RedirectToAction("Index", "Home");
-            }
-            return View(new RagChatbot.Presentation.ViewModels.RegisterViewModel());
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> Register(RagChatbot.Presentation.ViewModels.RegisterViewModel model)
-        {
-            if (!ModelState.IsValid)
-            {
-                return View(model);
-            }
-
-            var result = await _authService.RegisterAsync(model.Username, model.Password);
-            if (!result)
-            {
-                ViewBag.Error = "Tên đăng nhập đã tồn tại.";
-                return View(model);
-            }
-
-            TempData["Success"] = "Đăng ký tài khoản thành công! Vui lòng đăng nhập.";
+            // Redirect to login because public registration is disabled
             return RedirectToAction("Login");
         }
     }

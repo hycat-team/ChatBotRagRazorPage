@@ -70,9 +70,11 @@ builder.Services.AddScoped<IAiService, AiService>();
 builder.Services.AddSingleton<IGoogleDriveService, GoogleDriveService>();
 builder.Services.AddSingleton<ILocalStorageService, LocalStorageService>();
 builder.Services.AddScoped<IVectorSearchService, VectorSearchService>();
+builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 
 // Register Background Service
 builder.Services.AddHostedService<DocumentProcessingJob>();
+builder.Services.AddHostedService<ChatLogCleanupJob>();
 
 var app = builder.Build();
 
@@ -103,7 +105,7 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();

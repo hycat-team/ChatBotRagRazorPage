@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -12,9 +13,11 @@ using RagChatbot.DataAccess.Data;
 namespace RagChatbot.DataAccess.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260603053716_ChangeUsernameToEmail")]
+    partial class ChangeUsernameToEmail
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -78,11 +81,11 @@ namespace RagChatbot.DataAccess.Migrations
                         {
                             Id = 1,
                             DailyQueryCount = 0,
-                            Email = "admin@gmail.com",
+                            Email = "admin1",
                             FirstName = "Quản trị",
                             IsActive = true,
                             LastName = "Hệ thống",
-                            LastQueryDate = new DateTime(2026, 6, 3, 6, 1, 30, 67, DateTimeKind.Utc).AddTicks(6876),
+                            LastQueryDate = new DateTime(2026, 6, 3, 5, 37, 0, 987, DateTimeKind.Utc).AddTicks(7726),
                             PasswordHash = "Y07d+n5+EQi6ce7n2ti3NIbfnCs1+TT9LE/LNjozxlc=",
                             Role = "Admin"
                         },
@@ -91,11 +94,11 @@ namespace RagChatbot.DataAccess.Migrations
                             Id = 2,
                             DailyQueryCount = 0,
                             DepartmentId = 1,
-                            Email = "lecturer@gmail.com",
+                            Email = "lecturer1",
                             FirstName = "Nguyễn",
                             IsActive = true,
                             LastName = "Giảng Viên 1",
-                            LastQueryDate = new DateTime(2026, 6, 3, 6, 1, 30, 67, DateTimeKind.Utc).AddTicks(7147),
+                            LastQueryDate = new DateTime(2026, 6, 3, 5, 37, 0, 987, DateTimeKind.Utc).AddTicks(7981),
                             PasswordHash = "Yz9PJlOwHiN+8KJrW6mbQYyJTl9BLR121umofM8/fNg=",
                             Role = "Lecturer"
                         },
@@ -103,11 +106,11 @@ namespace RagChatbot.DataAccess.Migrations
                         {
                             Id = 3,
                             DailyQueryCount = 0,
-                            Email = "student1@gmail.com",
+                            Email = "cus1",
                             FirstName = "Học",
                             IsActive = true,
                             LastName = "Sinh 1",
-                            LastQueryDate = new DateTime(2026, 6, 3, 6, 1, 30, 67, DateTimeKind.Utc).AddTicks(7159),
+                            LastQueryDate = new DateTime(2026, 6, 3, 5, 37, 0, 987, DateTimeKind.Utc).AddTicks(7996),
                             PasswordHash = "q5AEtNl18HLfc3SmE3xdUM9B4HfRQy9LxxhIBjdDrhk=",
                             Role = "Student"
                         },
@@ -115,11 +118,11 @@ namespace RagChatbot.DataAccess.Migrations
                         {
                             Id = 4,
                             DailyQueryCount = 0,
-                            Email = "student2@gmail.com",
+                            Email = "cus2",
                             FirstName = "Học",
                             IsActive = true,
                             LastName = "Sinh 2",
-                            LastQueryDate = new DateTime(2026, 6, 3, 6, 1, 30, 67, DateTimeKind.Utc).AddTicks(7167),
+                            LastQueryDate = new DateTime(2026, 6, 3, 5, 37, 0, 987, DateTimeKind.Utc).AddTicks(8009),
                             PasswordHash = "++RMfEkC1qU39CHjzrIMeIRvyI14mE55Nv/47HrPF1I=",
                             Role = "Student"
                         },
@@ -128,11 +131,11 @@ namespace RagChatbot.DataAccess.Migrations
                             Id = 100,
                             DailyQueryCount = 0,
                             DepartmentId = 1,
-                            Email = "hod@gmail.com",
+                            Email = "hod1",
                             FirstName = "Trưởng",
                             IsActive = true,
                             LastName = "Khoa CNTT",
-                            LastQueryDate = new DateTime(2026, 6, 3, 6, 1, 30, 67, DateTimeKind.Utc).AddTicks(7175),
+                            LastQueryDate = new DateTime(2026, 6, 3, 5, 37, 0, 987, DateTimeKind.Utc).AddTicks(8020),
                             PasswordHash = "Cl7afaR0DnYdIJfugd6f3iJedk+4iQxVU2eK8vcBa6w=",
                             Role = "HeadOfDepartment"
                         });
@@ -258,7 +261,7 @@ namespace RagChatbot.DataAccess.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2026, 6, 3, 6, 1, 30, 67, DateTimeKind.Utc).AddTicks(6756),
+                            CreatedAt = new DateTime(2026, 6, 3, 5, 37, 0, 987, DateTimeKind.Utc).AddTicks(7615),
                             Description = "Khoa CNTT",
                             Name = "Công nghệ Thông tin"
                         });

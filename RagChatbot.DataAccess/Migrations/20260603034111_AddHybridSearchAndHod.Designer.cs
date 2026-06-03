@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -12,9 +13,11 @@ using RagChatbot.DataAccess.Data;
 namespace RagChatbot.DataAccess.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260603034111_AddHybridSearchAndHod")]
+    partial class AddHybridSearchAndHod
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -38,10 +41,6 @@ namespace RagChatbot.DataAccess.Migrations
                     b.Property<int?>("DepartmentId")
                         .HasColumnType("integer");
 
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasColumnType("text");
@@ -64,11 +63,15 @@ namespace RagChatbot.DataAccess.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Username")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.HasKey("Id");
 
                     b.HasIndex("DepartmentId");
 
-                    b.HasIndex("Email")
+                    b.HasIndex("Username")
                         .IsUnique();
 
                     b.ToTable("AppUsers");
@@ -78,63 +81,63 @@ namespace RagChatbot.DataAccess.Migrations
                         {
                             Id = 1,
                             DailyQueryCount = 0,
-                            Email = "admin@gmail.com",
                             FirstName = "Quản trị",
                             IsActive = true,
                             LastName = "Hệ thống",
-                            LastQueryDate = new DateTime(2026, 6, 3, 6, 1, 30, 67, DateTimeKind.Utc).AddTicks(6876),
+                            LastQueryDate = new DateTime(2026, 6, 3, 3, 41, 8, 475, DateTimeKind.Utc).AddTicks(4342),
                             PasswordHash = "Y07d+n5+EQi6ce7n2ti3NIbfnCs1+TT9LE/LNjozxlc=",
-                            Role = "Admin"
+                            Role = "Admin",
+                            Username = "admin1"
                         },
                         new
                         {
                             Id = 2,
                             DailyQueryCount = 0,
                             DepartmentId = 1,
-                            Email = "lecturer@gmail.com",
                             FirstName = "Nguyễn",
                             IsActive = true,
                             LastName = "Giảng Viên 1",
-                            LastQueryDate = new DateTime(2026, 6, 3, 6, 1, 30, 67, DateTimeKind.Utc).AddTicks(7147),
+                            LastQueryDate = new DateTime(2026, 6, 3, 3, 41, 8, 475, DateTimeKind.Utc).AddTicks(4624),
                             PasswordHash = "Yz9PJlOwHiN+8KJrW6mbQYyJTl9BLR121umofM8/fNg=",
-                            Role = "Lecturer"
+                            Role = "Lecturer",
+                            Username = "lecturer1"
                         },
                         new
                         {
                             Id = 3,
                             DailyQueryCount = 0,
-                            Email = "student1@gmail.com",
                             FirstName = "Học",
                             IsActive = true,
                             LastName = "Sinh 1",
-                            LastQueryDate = new DateTime(2026, 6, 3, 6, 1, 30, 67, DateTimeKind.Utc).AddTicks(7159),
+                            LastQueryDate = new DateTime(2026, 6, 3, 3, 41, 8, 475, DateTimeKind.Utc).AddTicks(4639),
                             PasswordHash = "q5AEtNl18HLfc3SmE3xdUM9B4HfRQy9LxxhIBjdDrhk=",
-                            Role = "Student"
+                            Role = "Student",
+                            Username = "cus1"
                         },
                         new
                         {
                             Id = 4,
                             DailyQueryCount = 0,
-                            Email = "student2@gmail.com",
                             FirstName = "Học",
                             IsActive = true,
                             LastName = "Sinh 2",
-                            LastQueryDate = new DateTime(2026, 6, 3, 6, 1, 30, 67, DateTimeKind.Utc).AddTicks(7167),
+                            LastQueryDate = new DateTime(2026, 6, 3, 3, 41, 8, 475, DateTimeKind.Utc).AddTicks(4655),
                             PasswordHash = "++RMfEkC1qU39CHjzrIMeIRvyI14mE55Nv/47HrPF1I=",
-                            Role = "Student"
+                            Role = "Student",
+                            Username = "cus2"
                         },
                         new
                         {
                             Id = 100,
                             DailyQueryCount = 0,
                             DepartmentId = 1,
-                            Email = "hod@gmail.com",
                             FirstName = "Trưởng",
                             IsActive = true,
                             LastName = "Khoa CNTT",
-                            LastQueryDate = new DateTime(2026, 6, 3, 6, 1, 30, 67, DateTimeKind.Utc).AddTicks(7175),
+                            LastQueryDate = new DateTime(2026, 6, 3, 3, 41, 8, 475, DateTimeKind.Utc).AddTicks(4670),
                             PasswordHash = "Cl7afaR0DnYdIJfugd6f3iJedk+4iQxVU2eK8vcBa6w=",
-                            Role = "HeadOfDepartment"
+                            Role = "HeadOfDepartment",
+                            Username = "hod1"
                         });
                 });
 
@@ -258,7 +261,7 @@ namespace RagChatbot.DataAccess.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2026, 6, 3, 6, 1, 30, 67, DateTimeKind.Utc).AddTicks(6756),
+                            CreatedAt = new DateTime(2026, 6, 3, 3, 41, 8, 475, DateTimeKind.Utc).AddTicks(4216),
                             Description = "Khoa CNTT",
                             Name = "Công nghệ Thông tin"
                         });

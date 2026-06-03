@@ -33,7 +33,12 @@ namespace RagChatbot.Presentation.Controllers
                 return RedirectToAction("Login", "Auth");
             }
 
-            // Everyone (Admin, Lecturer, Student) sees all subjects
+            if (User.IsInRole("Lecturer") || User.IsInRole("HeadOfDepartment"))
+            {
+                return RedirectToAction("Index", "Document");
+            }
+
+            // Student and Admin sees all subjects
             var subjects = await _subjectService.GetAllAsync();
 
             var viewModel = new RagChatbot.Presentation.ViewModels.HomeIndexViewModel

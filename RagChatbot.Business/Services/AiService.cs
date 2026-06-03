@@ -43,8 +43,6 @@ namespace RagChatbot.Business.Services
             var firstApiKey = apiKeys[0];
             var isGoogleKey = firstApiKey != null && (firstApiKey.StartsWith("AIza") || firstApiKey.StartsWith("AQ."));
 
-            Console.WriteLine($"[AiService Constructor] apiKey length: {firstApiKey?.Length ?? 0}, isGoogleKey: {isGoogleKey}, endpoint: '{endpoint}', chatModel: '{chatModel}', fastChatModel: '{fastChatModel}', embeddingModel: '{embeddingModelString}'");
-
             var builder = Kernel.CreateBuilder();
             var fastBuilder = Kernel.CreateBuilder();
 
@@ -57,8 +55,6 @@ namespace RagChatbot.Business.Services
                     ? new[] { "text-embedding-004" } 
                     : embeddingModelString.Split(',').Select(m => m.Trim()).ToArray();
 
-                Console.WriteLine($"[AiService Constructor] Configured native Google AI: chatModel={chatModel}, fastChatModel={fastChatModel}, embeddingModels={string.Join(",", embeddingModels)}");
-
                 builder.AddGoogleAIGeminiChatCompletion(chatModel, firstApiKey!);
                 fastBuilder.AddGoogleAIGeminiChatCompletion(fastChatModel, firstApiKey!);
             }
@@ -70,8 +66,6 @@ namespace RagChatbot.Business.Services
                 var singleEmbeddingModel = string.IsNullOrEmpty(embeddingModelString) 
                     ? "text-embedding-3-small" 
                     : embeddingModelString.Split(',').Select(m => m.Trim()).First();
-
-                Console.WriteLine($"[AiService Constructor] Configured OpenAI/Custom: chatModel={chatModel}, fastChatModel={fastChatModel}, embeddingModel={singleEmbeddingModel}");
 
                 if (!string.IsNullOrEmpty(endpoint))
                 {

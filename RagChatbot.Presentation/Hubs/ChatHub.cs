@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using RagChatbot.Business.Interfaces;
 using RagChatbot.DataAccess.EntityModels;
+using RagChatbot.DataAccess.Interfaces;
 using System.Text.Json;
 using System.Collections.Concurrent;
 
@@ -14,6 +15,8 @@ namespace RagChatbot.Presentation.Hubs
         private readonly ISubjectService _subjectService;
         private readonly IVectorSearchService _vectorSearchService;
         private readonly IAiService _aiService;
+        private readonly IDocumentService _documentService;
+        private readonly IAppUserRepository _userRepository;
         private readonly ILogger<ChatHub> _logger;
         private static readonly ConcurrentDictionary<string, CancellationTokenSource> _activeGenerations = new();
 
@@ -22,12 +25,16 @@ namespace RagChatbot.Presentation.Hubs
             ISubjectService subjectService,
             IVectorSearchService vectorSearchService,
             IAiService aiService,
+            IDocumentService documentService,
+            IAppUserRepository userRepository,
             ILogger<ChatHub> logger)
         {
             _chatService = chatService;
             _subjectService = subjectService;
             _vectorSearchService = vectorSearchService;
             _aiService = aiService;
+            _documentService = documentService;
+            _userRepository = userRepository;
             _logger = logger;
         }
 
@@ -99,6 +106,28 @@ namespace RagChatbot.Presentation.Hubs
                     return;
                 }
 
+                // RATE LIMITING CHECK
+                var user = await _userRepository.GetByIdAsync(userId);
+                if (user != null)
+                {
+                    var today = DateTime.UtcNow.Date;
+                    if (user.LastQueryDate.Date < today)
+                    {
+                        user.DailyQueryCount = 0;
+                        user.LastQueryDate = DateTime.UtcNow;
+                    }
+
+                    if (user.DailyQueryCount >= 50 && user.Role != "Admin")
+                    {
+                        await Clients.Caller.SendAsync("ReceiveError", "Bạn đã vượt quá giới hạn 50 câu hỏi/ngày. Vui lòng quay lại vào ngày mai.");
+                        return;
+                    }
+
+                    user.DailyQueryCount++;
+                    _userRepository.Update(user);
+                    await _userRepository.SaveChangesAsync();
+                }
+
                 if (!Guid.TryParse(sessionIdStr, out var sessionId))
                 {
                     var title = message.Length > 50 ? message.Substring(0, 50) + "..." : message;
@@ -125,6 +154,29 @@ namespace RagChatbot.Presentation.Hubs
                 // 2. Fetch recent conversation history early (excluding the current user message)
                 var history = await _chatService.GetRecentSessionMessagesAsync(sessionId, 10, savedUserMsg.Id);
 
+                // 2.5 Check BR-03: Môn học phải có ít nhất 1 tài liệu Active, nếu không ngắt luồng
+                var allDocs = await _documentService.GetBySubjectIdAsync(subjectId);
+                bool hasActiveDocs = allDocs.Any(d => d.Status == "Indexed" && d.IsActive);
+                
+                if (!hasActiveDocs)
+                {
+                    var noDocFallback = "Hiện tại môn học chưa có tài liệu học tập được kích hoạt trên hệ thống. Vui lòng quay lại sau hoặc liên hệ Bộ môn phụ trách để biết thêm chi tiết.";
+                    
+                    await Clients.Caller.SendAsync("ReceiveToken", "", false);
+                    await Clients.Caller.SendAsync("ReceiveToken", noDocFallback, false);
+                    
+                    var assistantMsgFallback = new RagChatbot.Business.DTOs.CreateChatMessageDto
+                    {
+                        SessionId = sessionId,
+                        Role = "assistant",
+                        Content = noDocFallback,
+                        Citations = "[]"
+                    };
+                    await _chatService.AddMessageAsync(assistantMsgFallback);
+                    await Clients.Caller.SendAsync("ReceiveToken", "[]", true);
+                    return;
+                }
+
                 // 3. Skip Vector DB Search for simple greetings, otherwise Rewrite Query
                 string standaloneQuery = message;
                 bool isGreeting = IsSimpleGreeting(message);
@@ -143,7 +195,7 @@ namespace RagChatbot.Presentation.Hubs
                         documentIds = documentIds.Where(id => id > 0).ToList();
                     }
 
-                    similarChunks = await _vectorSearchService.SearchSimilarChunksAsync(subjectId, questionEmbedding, topK: 15, documentIds: documentIds);
+                    similarChunks = await _vectorSearchService.SearchSimilarChunksAsync(subjectId, standaloneQuery, questionEmbedding, topK: 15, documentIds: documentIds);
                 }
                 else
                 {
@@ -192,17 +244,18 @@ namespace RagChatbot.Presentation.Hubs
 
                 foreach (var chunk in similarChunks)
                 {
-                    contextBuilder.AppendLine($"[File: {chunk.Document?.FileName}, Page: {chunk.PageNumber}]");
+                    var dispName = string.IsNullOrWhiteSpace(chunk.Document?.DisplayName) ? chunk.Document?.FileName : chunk.Document?.DisplayName;
+                    contextBuilder.AppendLine($"[{dispName}] - Trang {chunk.PageNumber}");
                     contextBuilder.AppendLine(chunk.Content);
                     contextBuilder.AppendLine("---");
 
-                    var citationKey = $"{chunk.Document?.FileName}_{chunk.PageNumber}";
+                    var citationKey = $"{dispName}_{chunk.PageNumber}";
                     if (!seenCitations.Contains(citationKey))
                     {
                         seenCitations.Add(citationKey);
                         citationsList.Add(new
                         {
-                            FileName = chunk.Document?.FileName,
+                            FileName = dispName,
                             Page = chunk.PageNumber,
                             ContentSnippet = chunk.Content.Length > 100 ? chunk.Content.Substring(0, 100) + "..." : chunk.Content
                         });
