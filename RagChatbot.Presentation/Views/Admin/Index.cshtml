@@ -254,6 +254,15 @@
                                                             title="Đổi Bộ môn">
                                                             <i class="fa-solid fa-pen text-sm"></i>
                                                         </button>
+                                                        <form asp-controller="Admin" asp-action="PromoteToHod" method="post" class="m-0">
+                                                            <input type="hidden" name="id" value="@user.Id" />
+                                                            <button type="submit" 
+                                                                onclick="return confirm('Bạn có chắc chắn muốn nâng cấp Giảng viên này lên làm Trưởng bộ môn?');"
+                                                                class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-500/10 transition-colors"
+                                                                title="Nâng cấp lên Trưởng bộ môn">
+                                                                <i class="fa-solid fa-arrow-up text-sm"></i>
+                                                            </button>
+                                                        </form>
                                                     }
                                                 </div>
                                             </td>

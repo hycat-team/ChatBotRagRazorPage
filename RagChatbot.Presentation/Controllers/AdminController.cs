@@ -393,6 +393,63 @@ namespace RagChatbot.Presentation.Controllers
             return RedirectToAction("HeadOfDepartments");
         }
 
+        [HttpPost]
+        public async Task<IActionResult> PromoteToHod(int id)
+        {
+            var user = await _userRepository.GetByIdAsync(id);
+            if (user == null || user.Role != "Lecturer")
+            {
+                TempData["Error"] = "Không tìm thấy Giảng viên.";
+                return RedirectToAction("Index");
+            }
+
+            if (!user.DepartmentId.HasValue)
+            {
+                TempData["Error"] = "Giảng viên này chưa được phân công bộ môn. Vui lòng phân công bộ môn trước khi nâng cấp.";
+                return RedirectToAction("Index");
+            }
+
+            var existingHod = _userRepository.Query()
+                .FirstOrDefault(u => u.Role == "HeadOfDepartment" && u.DepartmentId == user.DepartmentId.Value);
+
+            if (existingHod != null)
+            {
+                TempData["Error"] = "Bộ môn của giảng viên này đã có Trưởng bộ môn. Mỗi bộ môn chỉ được phép có 1 Trưởng bộ môn.";
+                return RedirectToAction("Index");
+            }
+
+            user.Role = "HeadOfDepartment";
+            _userRepository.Update(user);
+            await _userRepository.SaveChangesAsync();
+
+            var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            await _auditLogService.LogAsync(adminId, "Promote To HOD", user.Id.ToString(), $"DeptId: {user.DepartmentId}");
+
+            TempData["Success"] = $"Đã nâng cấp {user.LastName} {user.FirstName} lên làm Trưởng bộ môn.";
+            return RedirectToAction("Index");
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> DemoteToLecturer(int id)
+        {
+            var user = await _userRepository.GetByIdAsync(id);
+            if (user == null || user.Role != "HeadOfDepartment")
+            {
+                TempData["Error"] = "Không tìm thấy Trưởng bộ môn.";
+                return RedirectToAction("HeadOfDepartments");
+            }
+
+            user.Role = "Lecturer";
+            _userRepository.Update(user);
+            await _userRepository.SaveChangesAsync();
+
+            var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+            await _auditLogService.LogAsync(adminId, "Demote To Lecturer", user.Id.ToString(), $"DeptId: {user.DepartmentId}");
+
+            TempData["Success"] = $"Đã giáng chức {user.LastName} {user.FirstName} xuống làm Giảng viên.";
+            return RedirectToAction("HeadOfDepartments");
+        }
+
         [HttpGet]
         public async Task<IActionResult> Dashboard()
         {

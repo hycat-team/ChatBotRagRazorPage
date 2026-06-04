@@ -188,6 +188,15 @@
                                                         <i class="fa-solid fa-trash-can text-sm"></i>
                                                     </button>
                                                 </form>
+                                                <form asp-controller="Admin" asp-action="DemoteToLecturer" method="post" class="m-0">
+                                                    <input type="hidden" name="id" value="@user.Id" />
+                                                    <button type="submit" 
+                                                        onclick="return confirm('Bạn có chắc chắn muốn giáng chức người này xuống làm Giảng viên?');"
+                                                        class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-500/10 transition-colors"
+                                                        title="Giáng xuống Giảng viên">
+                                                        <i class="fa-solid fa-arrow-down text-sm"></i>
+                                                    </button>
+                                                </form>
                                             </div>
                                         </td>
                                     </tr>
