@@ -1,10 +1,14 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using RagChatbot.Business.Interfaces;
 using RagChatbot.DataAccess.Interfaces;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.AspNetCore.Hosting;
+using System.IO;
 
 namespace RagChatbot.Presentation.Controllers
 {
@@ -16,19 +20,22 @@ namespace RagChatbot.Presentation.Controllers
         private readonly IDocumentRepository _documentRepository;
         private readonly IAuditLogService _auditLogService;
         private readonly RagChatbot.DataAccess.Data.ApplicationDbContext _context;
+        private readonly IWebHostEnvironment _env; 
 
         public AdminController(
             IAppUserRepository userRepository, 
             IAuthService authService, 
             IDocumentRepository documentRepository,
             IAuditLogService auditLogService,
-            RagChatbot.DataAccess.Data.ApplicationDbContext context)
+            RagChatbot.DataAccess.Data.ApplicationDbContext context,
+            IWebHostEnvironment env) 
         {
             _userRepository = userRepository;
             _authService = authService;
             _documentRepository = documentRepository;
             _auditLogService = auditLogService;
             _context = context;
+            _env = env; // Gán giá trị môi trường
         }
 
         public async Task<IActionResult> Index(string searchEmail = "")
@@ -382,6 +389,133 @@ namespace RagChatbot.Presentation.Controllers
 
             TempData["Success"] = "Đổi bộ môn cho HOD thành công.";
             return RedirectToAction("HeadOfDepartments");
+        }
+
+        //TRANG DASHBOARD GIÁM SÁT HỌC LIỆU TOÀN TRƯỜNG 
+        [HttpGet]
+        public async Task<IActionResult> Dashboard()
+        {
+            // Lấy toàn bộ danh sách tài liệu học liệu được upload lên hệ thống (Sắp xếp mới nhất lên đầu)
+            var documents = _context.Documents
+                                    .Include(d => d.Subject)
+                                    .OrderByDescending(d => d.UploadedAt)
+                                    .Take(10) // Ví dụ lấy 10 tài liệu mới nhất
+                                    .ToList();
+
+            // Lấy danh sách user để hiển thị Email/Tên của Giảng viên/Trưởng bộ môn upload
+            var uploaders = _userRepository.Query()
+                .Where(u => u.Role == "Lecturer" || u.Role == "HeadOfDepartment")
+                .ToList();
+
+            // Lấy danh sách bộ môn để map thông tin học liệu thuộc bộ môn nào
+            var departments = _context.Departments.ToList();
+
+            // Đếm nhanh các chỉ số thống kê học liệu để hiển thị lên Dashboard Card
+            ViewBag.ActiveCount = documents.Count(d => d.IsActive == true);
+            ViewBag.ProcessingCount = documents.Count(d => d.IsActive == false);
+
+            ViewBag.Uploaders = uploaders;
+            ViewBag.Departments = departments;
+
+            // Truyền danh sách học liệu qua View
+            return View(documents);
+        }
+
+        // Action hỗ trợ Admin nhanh chóng GỠ BỎ học liệu lỗi trực tiếp từ trang Dashboard
+        [HttpPost]
+        public async Task<IActionResult> DeleteDocumentFromDashboard(int id)
+        {
+            var doc = await _documentRepository.GetByIdAsync(id);
+            if (doc != null)
+            {
+                _documentRepository.Remove(doc);
+                await _documentRepository.SaveChangesAsync();
+
+                var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+                await _auditLogService.LogAsync(adminId, "Admin Delete Document From Dashboard", id.ToString(), $"Document Deleted");
+
+                TempData["Success"] = "Đã gỡ bỏ tài liệu học liệu thành công khỏi hệ thống.";
+            }
+            else
+            {
+                TempData["Error"] = "Không tìm thấy tài liệu này.";
+            }
+            return RedirectToAction("Dashboard");
+        }
+
+        [HttpGet]
+        [Authorize(Roles = "Admin,Lecturer,HeadOfDepartment,Student")]
+        public IActionResult ViewDocument(int id)
+        {
+            // 1. Tìm thông tin tài liệu trong DB
+            var document = _context.Documents.FirstOrDefault(d => d.Id == id);
+            if (document == null)
+            {
+                TempData["Error"] = "Không tìm thấy thông tin tài liệu trên hệ thống.";
+                return RedirectToAction("Dashboard");
+            }
+
+            string rawPath = document.FilePath;
+            if (string.IsNullOrEmpty(rawPath))
+            {
+                TempData["Error"] = "Tài liệu này không có thông tin FilePath trong cơ sở dữ liệu.";
+                return RedirectToAction("Dashboard");
+            }
+
+            // 2. Bóc tách lấy tên file trần sạch sẽ
+            string fileNameOnDisk = rawPath;
+            if (fileNameOnDisk.StartsWith("local://", StringComparison.OrdinalIgnoreCase))
+            {
+                fileNameOnDisk = fileNameOnDisk.Substring(8); 
+            }
+
+            if (fileNameOnDisk.StartsWith("uploads/", StringComparison.OrdinalIgnoreCase) ||
+                fileNameOnDisk.StartsWith("uploads\\", StringComparison.OrdinalIgnoreCase))
+            {
+                fileNameOnDisk = fileNameOnDisk.Substring(8); // Cắt bỏ "uploads/" nếu bị lặp
+            }
+
+            // 3. TẠO DANH SÁCH BAO VÂY TẤT CẢ CÁC NƠI FILE CÓ THỂ TRỐN
+            string projectRoot = _env.ContentRootPath; // Thư mục gốc dự án
+            string webRoot = _env.WebRootPath;         // Thư mục wwwroot dự án
+
+            var possiblePaths = new System.Collections.Generic.List<string>
+    {
+        Path.Combine(projectRoot, "uploads", fileNameOnDisk), 
+        Path.Combine(projectRoot, fileNameOnDisk)             
+    };
+
+            // Nếu dự án có sử dụng wwwroot, thêm tiếp 2 vị trí trong wwwroot vào danh sách tìm kiếm
+            if (!string.IsNullOrEmpty(webRoot))
+            {
+                possiblePaths.Add(Path.Combine(webRoot, "uploads", fileNameOnDisk)); 
+                possiblePaths.Add(Path.Combine(webRoot, fileNameOnDisk));             
+            }
+            string absolutePath = null;
+            foreach (var path in possiblePaths)
+            {
+                if (System.IO.File.Exists(path))
+                {
+                    absolutePath = path;
+                    break; 
+                }
+            }
+
+            if (string.IsNullOrEmpty(absolutePath))
+            {
+                string searchedLocations = string.Join(" | ", possiblePaths);
+                TempData["Error"] = $"Không tìm thấy file thực tế trên ổ đĩa! Code đã tìm kiếm kỹ tại các vị trí sau nhưng đều trống không: [{searchedLocations}]. Vui lòng kiểm tra lại file hoặc logic Upload.";
+                return RedirectToAction("Dashboard");
+            }
+
+            var provider = new FileExtensionContentTypeProvider();
+            if (!provider.TryGetContentType(absolutePath, out var contentType))
+            {
+                contentType = "application/octet-stream";
+            }
+
+            string downloadName = document.FileName ?? Path.GetFileName(absolutePath);
+            return PhysicalFile(Path.GetFullPath(absolutePath), contentType, downloadName);
         }
     }
 }

@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using RagChatbot.DataAccess.Data;
 using RagChatbot.Business.Services;
 
@@ -29,12 +29,12 @@ else
 builder.Services.AddControllersWithViews();
 
 // Setup DbContext
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
-                     ?? Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+                       ?? Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 {
-    options.UseNpgsql(connectionString, o => 
+    options.UseNpgsql(connectionString, o =>
     {
         o.UseVector();
         o.MigrationsAssembly("RagChatbot.DataAccess");
@@ -51,6 +51,9 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.LoginPath = "/Auth/Login";
         options.LogoutPath = "/Auth/Logout";
         options.ExpireTimeSpan = TimeSpan.FromDays(7);
+
+        // CẤU HÌNH THÊM DÒNG NÀY: Điều hướng khi bị chặn quyền truy cập (Ví dụ: Học sinh vào trang Admin)
+        options.AccessDeniedPath = "/Auth/AccessDenied";
     });
 
 // Register Scoped Services
@@ -84,8 +87,6 @@ using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     dbContext.Database.Migrate();
-
-
 
     var stuckDocs = dbContext.Documents.Where(d => d.Status == "Processing").ToList();
     if (stuckDocs.Any())

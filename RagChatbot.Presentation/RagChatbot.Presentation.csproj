@@ -32,4 +32,10 @@
     <ProjectReference Include="..\RagChatbot.DataAccess\RagChatbot.DataAccess.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update=".env">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

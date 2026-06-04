@@ -1,17 +1,18 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using RagChatbot.DataAccess.EntityModels;
-using RagChatbot.Business.Services;
-using RagChatbot.Business.Interfaces;
-using RagChatbot.DataAccess.Interfaces;
-using RagChatbot.Business.Mappings;
-using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Collections.Generic;
+using RagChatbot.Business.Interfaces;
+using RagChatbot.Business.Mappings;
+using RagChatbot.Business.Services;
+using RagChatbot.DataAccess.EntityModels;
+using RagChatbot.DataAccess.Interfaces;
 using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Security.Claims;
+using System.Threading.Tasks;
 
 namespace RagChatbot.Presentation.Controllers
 {
@@ -47,19 +48,20 @@ namespace RagChatbot.Presentation.Controllers
             return int.TryParse(userIdStr, out int userId) ? userId : 0;
         }
 
-        [Authorize(Roles = "Admin,Lecturer,HeadOfDepartment")]
+        [Authorize(Roles = "Admin,Lecturer,HeadOfDepartment,Student")]
         public async Task<IActionResult> Index()
         {
             var userId = GetCurrentUserId();
             var isAdmin = User.IsInRole("Admin");
             var isHod = User.IsInRole("HeadOfDepartment");
             var isLecturer = User.IsInRole("Lecturer");
+            var isStudent = User.IsInRole("Student");
 
             var subjectsQuery = _context.Subjects.Include(s => s.Documents).AsQueryable();
 
-            if (isAdmin)
+            if (isAdmin || isStudent)
             {
-                // Admin sees all subjects
+                // Admin sees all subjects, Student thay moi tai lieu
             }
             else if (isHod)
             {
@@ -76,6 +78,11 @@ namespace RagChatbot.Presentation.Controllers
             else if (isLecturer)
             {
                 subjectsQuery = subjectsQuery.Where(s => s.Assignments.Any(a => a.LecturerId == userId));
+            }
+            else
+            {
+                // Phòng hờ trường hợp Role lạ khác không có quyền
+                subjectsQuery = subjectsQuery.Where(s => false);
             }
 
             var subjects = subjectsQuery.ToList();
@@ -457,6 +464,120 @@ namespace RagChatbot.Presentation.Controllers
 
             await _context.SaveChangesAsync();
             return Json(new { success = true });
+        }
+
+        [Authorize(Roles = "Student")]
+        [HttpGet]
+        public async Task<IActionResult> Browse(int? subjectId, string searchString)
+        {
+            // 1. Lấy danh sách tất cả môn học để học sinh chọn lọc
+            var subjects = _context.Subjects.OrderBy(s => s.Name).ToList();
+
+            // 2. Tạo câu truy vấn: Lấy file kèm theo thông tin môn học (.Include)
+            // Chỉ lấy các file đã được AI xử lý (Indexed) và được Giảng viên cho phép xem (IsActive)
+            var query = _context.Documents
+                .Include(d => d.Subject) // Thêm Include này để lúc hiển thị tên môn học không bị lỗi trống (null)
+                .Where(d => d.Status == "Indexed" && d.IsActive)
+                .AsQueryable();
+
+            // 3. Logic lọc theo môn học khi học sinh chọn dropdown
+            if (subjectId.HasValue && subjectId.Value > 0)
+            {
+                query = query.Where(d => d.SubjectId == subjectId.Value);
+            }
+
+            // 4. Logic tìm kiếm theo từ khóa học sinh gõ
+            if (!string.IsNullOrWhiteSpace(searchString))
+            {
+                string keyword = searchString.Trim().ToLower();
+                query = query.Where(d => d.FileName.ToLower().Contains(keyword) ||
+                                         (d.DisplayName != null && d.DisplayName.ToLower().Contains(keyword)));
+            }
+
+            // 5. Thực thi lấy dữ liệu
+            var documents = await query.OrderByDescending(d => d.UploadedAt).ToListAsync();
+
+            // 6. Đẩy dữ liệu ra giao diện Browse.cshtml
+            ViewBag.Subjects = subjects;
+            ViewBag.SelectedSubjectId = subjectId;
+            ViewBag.SearchString = searchString;
+
+            return View(documents);
+        }
+
+        [HttpGet]
+        [Authorize(Roles = "Admin,Lecturer,HeadOfDepartment,Student")]
+        public IActionResult ViewDocument(int id)
+        {
+            // 1. Tìm thông tin tài liệu trong DB
+            var document = _context.Documents.FirstOrDefault(d => d.Id == id);
+            if (document == null)
+            {
+                TempData["Error"] = "Không tìm thấy thông tin tài liệu trên hệ thống.";
+                return RedirectToAction("Dashboard");
+            }
+
+            string rawPath = document.FilePath;
+            if (string.IsNullOrEmpty(rawPath))
+            {
+                TempData["Error"] = "Tài liệu này không có thông tin FilePath trong cơ sở dữ liệu.";
+                return RedirectToAction("Dashboard");
+            }
+
+            // 2. Bóc tách lấy tên file trần sạch sẽ
+            string fileNameOnDisk = rawPath;
+            if (fileNameOnDisk.StartsWith("local://", StringComparison.OrdinalIgnoreCase))
+            {
+                fileNameOnDisk = fileNameOnDisk.Substring(8);
+            }
+
+            if (fileNameOnDisk.StartsWith("uploads/", StringComparison.OrdinalIgnoreCase) ||
+                fileNameOnDisk.StartsWith("uploads\\", StringComparison.OrdinalIgnoreCase))
+            {
+                fileNameOnDisk = fileNameOnDisk.Substring(8); // Cắt bỏ "uploads/" nếu bị lặp
+            }
+
+            // 3. TẠO DANH SÁCH BAO VÂY TẤT CẢ CÁC NƠI FILE CÓ THỂ TRỐN
+            string projectRoot = _env.ContentRootPath; // Thư mục gốc dự án
+            string webRoot = _env.WebRootPath;         // Thư mục wwwroot dự án
+
+            var possiblePaths = new System.Collections.Generic.List<string>
+    {
+        Path.Combine(projectRoot, "uploads", fileNameOnDisk),
+        Path.Combine(projectRoot, fileNameOnDisk)
+    };
+
+            // Nếu dự án có sử dụng wwwroot, thêm tiếp 2 vị trí trong wwwroot vào danh sách tìm kiếm
+            if (!string.IsNullOrEmpty(webRoot))
+            {
+                possiblePaths.Add(Path.Combine(webRoot, "uploads", fileNameOnDisk));
+                possiblePaths.Add(Path.Combine(webRoot, fileNameOnDisk));
+            }
+            string absolutePath = null;
+            foreach (var path in possiblePaths)
+            {
+                if (System.IO.File.Exists(path))
+                {
+                    absolutePath = path;
+                    break;
+                }
+            }
+
+            if (string.IsNullOrEmpty(absolutePath))
+            {
+                string searchedLocations = string.Join(" | ", possiblePaths);
+                TempData["Error"] = $"Không tìm thấy file thực tế trên ổ đĩa! Code đã tìm kiếm kỹ tại các vị trí sau nhưng đều trống không: [{searchedLocations}]. Vui lòng kiểm tra lại file hoặc logic Upload.";
+                return RedirectToAction("Dashboard");
+            }
+
+            var provider = new FileExtensionContentTypeProvider();
+            if (!provider.TryGetContentType(absolutePath, out var contentType))
+            {
+                contentType = "application/octet-stream";
+            }
+
+            string downloadName = document.FileName ?? Path.GetFileName(absolutePath);
+            return PhysicalFile(Path.GetFullPath(absolutePath), contentType, downloadName);
         }
     }
 }

@@ -1,6 +1,6 @@
 # RAG Chatbot — Hệ thống Chatbot Hỗ trợ Học tập
 
-Ứng dụng Web áp dụng kỹ thuật **RAG (Retrieval-Augmented Generation)** cho phép sinh viên hỏi đáp tự nhiên dựa trên tài liệu môn học (PDF, DOCX). Bot chỉ trả lời trong phạm vi tài liệu được cung cấp và luôn kèm theo trích dẫn nguồn (tên file, số trang).
+Ứng dụng Web áp dụng kỹ thuật **RAG (Retrieval-Augmented Generation)** cho phép sinh viên hỏi đáp tự nhiên và xem tài liệu dựa trên tài liệu môn học (PDF, DOCX). Bot chỉ trả lời trong phạm vi tài liệu được cung cấp và luôn kèm theo trích dẫn nguồn (tên file, số trang).
 
 ## Tính Năng Nổi Bật
 
@@ -10,6 +10,7 @@
 - **Realtime Streaming Chat:** Dùng **SignalR** để stream từng token phản hồi của AI về giao diện (giống ChatGPT).
 - **Trích Dẫn Thông Minh (Citations):** Cuối mỗi câu trả lời, Bot chỉ rõ tên file và số trang đã dùng làm ngữ cảnh.
 - **Lịch sử Chat:** Hệ thống lưu và tải lại lịch sử hội thoại theo từng môn học.
+- **Xem tài lieu: Hệ thống cho phép học sinh xem tài lieu mà giảng viên đã up lên nếu muốn theo dõi chi tiết 
 
 ## Kiến Trúc Kỹ Thuật
 
@@ -216,7 +217,7 @@ Mở trình duyệt tại `http://localhost:5000` (hoặc URL hiển thị trong
 1. Vào tab **Documents** → Tạo môn học mới (ví dụ: `PRN222` - `Lập trình .NET`).
 2. Upload file PDF/DOCX cho môn học. Trạng thái ban đầu là `Pending`.
 3. Chờ ~10 giây để background job xử lý → Refresh trang → Trạng thái chuyển sang `Indexed`.
-4. Quay lại tab **Chat** → Chọn môn học ở thanh bên trái → Bắt đầu hỏi!
+4. Quay lại tab **Chat** → Chọn môn học ở thanh bên trái → Bắt đầu hỏi! hoặc tab xem tài lieu và bắt đàu xem tài lieu chi tiết
 
 ## Tài Liệu Chi Tiết
 
