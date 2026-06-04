@@ -1,14 +1,16 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using RagChatbot.Business.Interfaces;
+using RagChatbot.DataAccess.EntityModels;
 using RagChatbot.DataAccess.Interfaces;
+using System;
+using System.IO;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.StaticFiles;
-using Microsoft.AspNetCore.Hosting;
-using System.IO;
 
 namespace RagChatbot.Presentation.Controllers
 {
@@ -20,15 +22,15 @@ namespace RagChatbot.Presentation.Controllers
         private readonly IDocumentRepository _documentRepository;
         private readonly IAuditLogService _auditLogService;
         private readonly RagChatbot.DataAccess.Data.ApplicationDbContext _context;
-        private readonly IWebHostEnvironment _env; 
+        private readonly IWebHostEnvironment _env;
 
         public AdminController(
-            IAppUserRepository userRepository, 
-            IAuthService authService, 
+            IAppUserRepository userRepository,
+            IAuthService authService,
             IDocumentRepository documentRepository,
             IAuditLogService auditLogService,
             RagChatbot.DataAccess.Data.ApplicationDbContext context,
-            IWebHostEnvironment env) 
+            IWebHostEnvironment env)
         {
             _userRepository = userRepository;
             _authService = authService;
@@ -41,14 +43,14 @@ namespace RagChatbot.Presentation.Controllers
         public async Task<IActionResult> Index(string searchEmail = "")
         {
             var query = _userRepository.Query().Where(u => u.Role != "Admin");
-            
+
             if (!string.IsNullOrWhiteSpace(searchEmail))
             {
                 query = query.Where(u => u.Email.Contains(searchEmail));
             }
-            
+
             var users = query.ToList();
-            
+
             ViewBag.Departments = _context.Departments.ToList();
             return View(users);
         }
@@ -104,8 +106,8 @@ namespace RagChatbot.Presentation.Controllers
                     if (emailService != null)
                     {
                         await emailService.SendEmailAsync(
-                            email, 
-                            "Tài khoản hệ thống RAG Chatbot", 
+                            email,
+                            "Tài khoản hệ thống RAG Chatbot",
                             $"Xin chào {lastName} {firstName},\n\nTài khoản của bạn đã được tạo.\nEmail đăng nhập: {email}\nMật khẩu mặc định: {password}\n\nVui lòng đăng nhập và đổi mật khẩu."
                         );
                     }
@@ -159,10 +161,10 @@ namespace RagChatbot.Presentation.Controllers
             {
                 _userRepository.Remove(user);
                 await _userRepository.SaveChangesAsync();
-                
+
                 var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
                 await _auditLogService.LogAsync(adminId, "Delete User", user.Id.ToString(), $"Email: {user.Email}");
-                
+
                 TempData["Success"] = "Xóa tài khoản thành công.";
             }
             else
@@ -184,10 +186,10 @@ namespace RagChatbot.Presentation.Controllers
                 user.PasswordHash = System.Convert.ToBase64String(sha256.ComputeHash(bytes));
                 _userRepository.Update(user);
                 await _userRepository.SaveChangesAsync();
-                
+
                 var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
                 await _auditLogService.LogAsync(adminId, "Reset Password", user.Id.ToString(), $"Email: {user.Email}");
-                
+
                 TempData["Success"] = $"Đặt lại mật khẩu thành công cho tài khoản {user.Email} (Mật khẩu mới: 123456).";
             }
             else
@@ -220,10 +222,10 @@ namespace RagChatbot.Presentation.Controllers
                 }
 
                 await _userRepository.SaveChangesAsync();
-                
+
                 var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
                 await _auditLogService.LogAsync(adminId, "Toggle User Status", user.Id.ToString(), $"IsActive: {user.IsActive}");
-                
+
                 TempData["Success"] = $"{(user.IsActive ? "Mở khóa" : "Khóa")} tài khoản thành công.";
             }
             else
@@ -249,10 +251,10 @@ namespace RagChatbot.Presentation.Controllers
                 var dept = new RagChatbot.DataAccess.EntityModels.Department { Name = name, Description = description };
                 _context.Departments.Add(dept);
                 await _context.SaveChangesAsync();
-                
+
                 var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
                 await _auditLogService.LogAsync(adminId, "Create Department", dept.Id.ToString(), $"Name: {name}");
-                
+
                 TempData["Success"] = "Tạo Bộ môn thành công.";
             }
             return RedirectToAction("Departments");
@@ -266,10 +268,10 @@ namespace RagChatbot.Presentation.Controllers
             {
                 _context.Departments.Remove(dept);
                 await _context.SaveChangesAsync();
-                
+
                 var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
                 await _auditLogService.LogAsync(adminId, "Delete Department", dept.Id.ToString(), $"Name: {dept.Name}");
-                
+
                 TempData["Success"] = "Xóa bộ môn thành công.";
             }
             else
@@ -289,10 +291,10 @@ namespace RagChatbot.Presentation.Controllers
                 dept.Description = description;
                 _context.Departments.Update(dept);
                 await _context.SaveChangesAsync();
-                
+
                 var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
                 await _auditLogService.LogAsync(adminId, "Update Department", dept.Id.ToString(), $"Name: {name}");
-                
+
                 TempData["Success"] = "Cập nhật bộ môn thành công.";
             }
             else
@@ -307,7 +309,7 @@ namespace RagChatbot.Presentation.Controllers
             var hods = _userRepository.Query()
                 .Where(u => u.Role == "HeadOfDepartment")
                 .ToList();
-            
+
             // Populate department for view
             var depts = _context.Departments.ToList();
             foreach (var hod in hods)
@@ -328,7 +330,7 @@ namespace RagChatbot.Presentation.Controllers
             // Kiểm tra bộ môn đã có HOD chưa
             var existingHod = _userRepository.Query()
                 .FirstOrDefault(u => u.Role == "HeadOfDepartment" && u.DepartmentId == departmentId);
-                
+
             if (existingHod != null)
             {
                 TempData["Error"] = "Bộ môn này đã có Trưởng bộ môn. Mỗi bộ môn chỉ được phép có 1 Trưởng bộ môn.";
@@ -345,7 +347,7 @@ namespace RagChatbot.Presentation.Controllers
                     user.DepartmentId = departmentId;
                     _userRepository.Update(user);
                     await _userRepository.SaveChangesAsync();
-                    
+
                     var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
                     await _auditLogService.LogAsync(adminId, "Create HOD", user.Id.ToString(), $"Email: {email}, Dept: {departmentId}");
                 }
@@ -372,7 +374,7 @@ namespace RagChatbot.Presentation.Controllers
             {
                 var existingHod = _userRepository.Query()
                     .FirstOrDefault(u => u.Role == "HeadOfDepartment" && u.DepartmentId == departmentId.Value && u.Id != id);
-                    
+
                 if (existingHod != null)
                 {
                     TempData["Error"] = "Bộ môn này đã có người quản lý. Mỗi bộ môn chỉ được phép có 1 Trưởng bộ môn.";
@@ -391,33 +393,37 @@ namespace RagChatbot.Presentation.Controllers
             return RedirectToAction("HeadOfDepartments");
         }
 
-        //TRANG DASHBOARD GIÁM SÁT HỌC LIỆU TOÀN TRƯỜNG 
         [HttpGet]
         public async Task<IActionResult> Dashboard()
         {
-            // Lấy toàn bộ danh sách tài liệu học liệu được upload lên hệ thống (Sắp xếp mới nhất lên đầu)
             var documents = _context.Documents
                                     .Include(d => d.Subject)
                                     .OrderByDescending(d => d.UploadedAt)
-                                    .Take(10) // Ví dụ lấy 10 tài liệu mới nhất
+                                    .Take(10)
                                     .ToList();
 
-            // Lấy danh sách user để hiển thị Email/Tên của Giảng viên/Trưởng bộ môn upload
             var uploaders = _userRepository.Query()
                 .Where(u => u.Role == "Lecturer" || u.Role == "HeadOfDepartment")
                 .ToList();
 
-            // Lấy danh sách bộ môn để map thông tin học liệu thuộc bộ môn nào
             var departments = _context.Departments.ToList();
 
-            // Đếm nhanh các chỉ số thống kê học liệu để hiển thị lên Dashboard Card
-            ViewBag.ActiveCount = documents.Count(d => d.IsActive == true);
-            ViewBag.ProcessingCount = documents.Count(d => d.IsActive == false);
+
+            ViewBag.ActiveCount = _context.Documents.Count(d => d.IsActive == true);
+            ViewBag.ProcessingCount = _context.Documents.Count(d => d.IsActive == false);
+
+
+            int premiumUsersCount = _userRepository.Query().Count(u => u.Subscription == AppUser.SubscriptionType.Premium);
+
+            long packagePrice = 100000;
+            long totalRevenue = premiumUsersCount * packagePrice;
+
+            ViewBag.PremiumCount = premiumUsersCount;
+            ViewBag.TotalRevenue = totalRevenue;
 
             ViewBag.Uploaders = uploaders;
             ViewBag.Departments = departments;
 
-            // Truyền danh sách học liệu qua View
             return View(documents);
         }
 
@@ -466,7 +472,7 @@ namespace RagChatbot.Presentation.Controllers
             string fileNameOnDisk = rawPath;
             if (fileNameOnDisk.StartsWith("local://", StringComparison.OrdinalIgnoreCase))
             {
-                fileNameOnDisk = fileNameOnDisk.Substring(8); 
+                fileNameOnDisk = fileNameOnDisk.Substring(8);
             }
 
             if (fileNameOnDisk.StartsWith("uploads/", StringComparison.OrdinalIgnoreCase) ||
@@ -480,16 +486,16 @@ namespace RagChatbot.Presentation.Controllers
             string webRoot = _env.WebRootPath;         // Thư mục wwwroot dự án
 
             var possiblePaths = new System.Collections.Generic.List<string>
-    {
-        Path.Combine(projectRoot, "uploads", fileNameOnDisk), 
-        Path.Combine(projectRoot, fileNameOnDisk)             
-    };
+            {
+                Path.Combine(projectRoot, "uploads", fileNameOnDisk),
+                Path.Combine(projectRoot, fileNameOnDisk)
+            };
 
             // Nếu dự án có sử dụng wwwroot, thêm tiếp 2 vị trí trong wwwroot vào danh sách tìm kiếm
             if (!string.IsNullOrEmpty(webRoot))
             {
-                possiblePaths.Add(Path.Combine(webRoot, "uploads", fileNameOnDisk)); 
-                possiblePaths.Add(Path.Combine(webRoot, fileNameOnDisk));             
+                possiblePaths.Add(Path.Combine(webRoot, "uploads", fileNameOnDisk));
+                possiblePaths.Add(Path.Combine(webRoot, fileNameOnDisk));
             }
             string absolutePath = null;
             foreach (var path in possiblePaths)
@@ -497,7 +503,7 @@ namespace RagChatbot.Presentation.Controllers
                 if (System.IO.File.Exists(path))
                 {
                     absolutePath = path;
-                    break; 
+                    break;
                 }
             }
 

@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RagChatbot.Business.Interfaces;
+using RagChatbot.DataAccess.Interfaces; 
+using RagChatbot.DataAccess.EntityModels;
 using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -11,10 +14,12 @@ namespace RagChatbot.Presentation.Controllers
     public class AuthController : Controller
     {
         private readonly IAuthService _authService;
+        private readonly IAppUserRepository _userRepository; 
 
-        public AuthController(IAuthService authService)
+        public AuthController(IAuthService authService, IAppUserRepository userRepository)
         {
             _authService = authService;
+            _userRepository = userRepository;
         }
 
         [HttpGet]
@@ -122,7 +127,35 @@ namespace RagChatbot.Presentation.Controllers
         [HttpGet]
         public IActionResult AccessDenied()
         {
-            return View(); 
+            return View();
+        }
+
+        // ─── TÍNH NĂNG NÂNG CẤP PREMIUM THỬ NGHIỆM (MOCK UPGRADE) ───
+        [Authorize(Roles = "Student")]
+        [HttpPost]
+        public async Task<IActionResult> UpgradeToPremium()
+        {
+            // 1. Lấy Id người dùng đang đăng nhập từ Cookies
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(userIdStr, out int userId))
+            {
+                var user = await _userRepository.GetByIdAsync(userId);
+                if (user != null)
+                {
+                    // 2. Chuyển đổi gói thành Premium dựa theo đúng cấu trúc Enum lồng trong AppUser
+                    user.Subscription = AppUser.SubscriptionType.Premium;
+
+                    _userRepository.Update(user);
+                    await _userRepository.SaveChangesAsync();
+
+                    // 3. Đưa thông báo thành công ra màn hình để hiển thị Alert
+                    TempData["Success"] = "Chúc mừng! Bạn đã nâng cấp tài khoản Premium thành công. Hãy tận hưởng kho dữ liệu và AI không giới hạn! ✨👑";
+
+                    // 4. Quay trở về trang danh sách tài liệu
+                    return RedirectToAction("Browse", "Document");
+                }
+            }
+            return BadRequest("Không tìm thấy thông tin tài khoản hợp lệ.");
         }
     }
 }

@@ -16,5 +16,19 @@ namespace RagChatbot.DataAccess.Repositories
         {
             return await _context.AppUsers.FirstOrDefaultAsync(u => u.Email == email);
         }
+
+        public async Task<bool> CheckAndResetUsageAsync(AppUser user)
+        {
+            var today = DateTime.UtcNow.Date;
+            if (user.LastActiveDate.Date < today)
+            {
+                user.TodayChatCount = 0;
+                user.LastActiveDate = today;
+                _context.AppUsers.Update(user);
+                await _context.SaveChangesAsync();
+                return true;
+            }
+            return false;
+        }
     }
 }

@@ -470,13 +470,24 @@ namespace RagChatbot.Presentation.Controllers
         [HttpGet]
         public async Task<IActionResult> Browse(int? subjectId, string searchString)
         {
+            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            bool isPremium = false;
+            if (int.TryParse(userIdStr, out int userId))
+            {
+                var user = await _context.AppUsers.FindAsync(userId);
+                if (user != null)
+                {
+                    isPremium = user.Subscription == AppUser.SubscriptionType.Premium;
+                }
+            }
+            ViewBag.IsPremium = isPremium; 
+                                           
             // 1. Lấy danh sách tất cả môn học để học sinh chọn lọc
             var subjects = _context.Subjects.OrderBy(s => s.Name).ToList();
 
             // 2. Tạo câu truy vấn: Lấy file kèm theo thông tin môn học (.Include)
-            // Chỉ lấy các file đã được AI xử lý (Indexed) và được Giảng viên cho phép xem (IsActive)
             var query = _context.Documents
-                .Include(d => d.Subject) // Thêm Include này để lúc hiển thị tên môn học không bị lỗi trống (null)
+                .Include(d => d.Subject)
                 .Where(d => d.Status == "Indexed" && d.IsActive)
                 .AsQueryable();
 
@@ -491,7 +502,7 @@ namespace RagChatbot.Presentation.Controllers
             {
                 string keyword = searchString.Trim().ToLower();
                 query = query.Where(d => d.FileName.ToLower().Contains(keyword) ||
-                                         (d.DisplayName != null && d.DisplayName.ToLower().Contains(keyword)));
+                                     (d.DisplayName != null && d.DisplayName.ToLower().Contains(keyword)));
             }
 
             // 5. Thực thi lấy dữ liệu
@@ -507,10 +518,24 @@ namespace RagChatbot.Presentation.Controllers
 
         [HttpGet]
         [Authorize(Roles = "Admin,Lecturer,HeadOfDepartment,Student")]
-        public IActionResult ViewDocument(int id)
+        public async Task<IActionResult> ViewDocument(int id)
         {
-            // 1. Tìm thông tin tài liệu trong DB
-            var document = _context.Documents.FirstOrDefault(d => d.Id == id);
+            if (User.IsInRole("Student"))
+            {
+                var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (int.TryParse(userIdStr, out int userId))
+                {
+                    var user = await _context.AppUsers.FindAsync(userId);
+                    if (user != null && user.Subscription == AppUser.SubscriptionType.Free)
+                    {
+                        TempData["Error"] = "Tính năng đọc tài liệu chỉ dành riêng cho tài khoản Premium. Vui lòng nâng cấp gói để mở khóa!";
+                        return RedirectToAction("Browse"); 
+                    }
+                }
+            }
+
+            // 1. Tìm thông tin tài liệu trong DB (Chuyển sang dùng bản Async luôn cho mượt)
+            var document = await _context.Documents.FirstOrDefaultAsync(d => d.Id == id);
             if (document == null)
             {
                 TempData["Error"] = "Không tìm thấy thông tin tài liệu trên hệ thống.";
@@ -524,7 +549,7 @@ namespace RagChatbot.Presentation.Controllers
                 return RedirectToAction("Dashboard");
             }
 
-            // 2. Bóc tách lấy tên file trần sạch sẽ
+            // 2. Bóc tách lấy tên file trần sạch sẽ (Giữ nguyên logic của ông)
             string fileNameOnDisk = rawPath;
             if (fileNameOnDisk.StartsWith("local://", StringComparison.OrdinalIgnoreCase))
             {
@@ -534,25 +559,25 @@ namespace RagChatbot.Presentation.Controllers
             if (fileNameOnDisk.StartsWith("uploads/", StringComparison.OrdinalIgnoreCase) ||
                 fileNameOnDisk.StartsWith("uploads\\", StringComparison.OrdinalIgnoreCase))
             {
-                fileNameOnDisk = fileNameOnDisk.Substring(8); // Cắt bỏ "uploads/" nếu bị lặp
+                fileNameOnDisk = fileNameOnDisk.Substring(8);
             }
 
-            // 3. TẠO DANH SÁCH BAO VÂY TẤT CẢ CÁC NƠI FILE CÓ THỂ TRỐN
-            string projectRoot = _env.ContentRootPath; // Thư mục gốc dự án
-            string webRoot = _env.WebRootPath;         // Thư mục wwwroot dự án
+            // 3. TẠO DANH SÁCH BAO VÂY TẤT CẢ CÁC NƠI FILE CÓ THỂ TRỐN (Giữ nguyên logic Docker)
+            string projectRoot = _env.ContentRootPath;
+            string webRoot = _env.WebRootPath;
 
             var possiblePaths = new System.Collections.Generic.List<string>
-    {
-        Path.Combine(projectRoot, "uploads", fileNameOnDisk),
-        Path.Combine(projectRoot, fileNameOnDisk)
-    };
+        {
+            Path.Combine(projectRoot, "uploads", fileNameOnDisk),
+            Path.Combine(projectRoot, fileNameOnDisk)
+        };
 
-            // Nếu dự án có sử dụng wwwroot, thêm tiếp 2 vị trí trong wwwroot vào danh sách tìm kiếm
             if (!string.IsNullOrEmpty(webRoot))
             {
                 possiblePaths.Add(Path.Combine(webRoot, "uploads", fileNameOnDisk));
-                possiblePaths.Add(Path.Combine(webRoot, fileNameOnDisk));
+                Path.Combine(webRoot, fileNameOnDisk);
             }
+
             string absolutePath = null;
             foreach (var path in possiblePaths)
             {

@@ -1,9 +1,14 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace RagChatbot.DataAccess.EntityModels
 {
     public class AppUser
     {
+        public enum SubscriptionType
+        {
+            Free = 0,
+            Premium = 1
+        }
         public int Id { get; set; }
         public string Email { get; set; } = string.Empty;
         public string PasswordHash { get; set; } = string.Empty;
@@ -20,5 +25,9 @@ namespace RagChatbot.DataAccess.EntityModels
         public Department? Department { get; set; }
         public ICollection<Subject> Subjects { get; set; } = new List<Subject>();
         public ICollection<SubjectAssignment> SubjectAssignments { get; set; } = new List<SubjectAssignment>();
+
+        public SubscriptionType Subscription { get; set; } = SubscriptionType.Free; // Mặc định là Free
+        public int TodayChatCount { get; set; } = 0; // Đếm số câu hỏi trong ngày
+        public DateTime LastActiveDate { get; set; } = DateTime.UtcNow.Date; // Lưu ngày hoạt động gần nhất để reset
     }
 }

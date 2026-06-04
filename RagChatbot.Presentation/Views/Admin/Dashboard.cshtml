@@ -2,10 +2,14 @@
 @using RagChatbot.DataAccess.EntityModels
 
 @{
-    ViewData["Title"] = "Dashboard Giám sát Học liệu";
+    ViewData["Title"] = "Dashboard Giám sát Hệ thống";
     var uploaders = ViewBag.Uploaders as List<AppUser> ?? new List<AppUser>();
     var departments = ViewBag.Departments as List<Department> ?? new List<Department>();
     int procCount = ViewBag.ProcessingCount ?? 0;
+
+    // ─── ĐỌC DỮ LIỆU DOANH THU & PREMIUM TỪ CONTROLLER BẮN QUA ───
+    long totalRevenue = ViewBag.TotalRevenue ?? 0; // Đơn vị: VND
+    int premiumCount = ViewBag.PremiumCount ?? 0;   // Số lượng user Premium
 }
 
 <div class="flex-1 p-6 overflow-y-auto bg-slate-50 dark:bg-slate-950">
@@ -23,33 +27,58 @@
         </div>
     }
 
-    <div class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+    <div class="mb-6 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6">
         <div>
             <h1 class="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <i class="fa-solid fa-chart-pie text-emerald-500"></i> Tổng quan Hệ thống RAG
+                <i class="fa-solid fa-chart-pie text-emerald-500"></i> Tổng quan Hệ thống Quản trị
             </h1>
-            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Theo dõi, giám sát hoạt động upload và đóng góp học liệu của Giảng viên & Trưởng bộ môn.</p>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Giám sát hoạt động đóng góp học liệu RAG kết hợp theo dõi doanh thu gói Premium thực tế.</p>
         </div>
 
-        <div class="flex gap-4">
-            <div class="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center gap-3 shadow-sm">
-                <span class="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                    <i class="fa-solid fa-file-circle-check"></i>
+        <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 w-full xl:w-auto shrink-0">
+
+            <div class="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center gap-3.5 shadow-sm min-w-[160px]">
+                <span class="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+                    <i class="fa-solid fa-money-bill-wave text-base"></i>
                 </span>
                 <div>
-                    <p class="text-xs text-slate-400">Tài liệu Active</p>
+                    <p class="text-xs text-slate-400 dark:text-slate-500 font-medium">Tổng doanh thu</p>
+                    <p class="text-base font-bold text-slate-800 dark:text-slate-200 mt-0.5">
+                        @totalRevenue.ToString("N0") <span class="text-xs font-normal text-slate-400">đ</span>
+                    </p>
+                </div>
+            </div>
+
+            <div class="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center gap-3.5 shadow-sm min-w-[160px]">
+                <span class="w-10 h-10 rounded-lg bg-indigo-100 dark:bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+                    <i class="fa-solid fa-crown text-sm"></i>
+                </span>
+                <div>
+                    <p class="text-xs text-slate-400 dark:text-slate-500 font-medium">Gói Premium</p>
+                    <p class="text-lg font-bold text-slate-800 dark:text-slate-200">@premiumCount <span class="text-xs font-normal text-slate-400">User</span></p>
+                </div>
+            </div>
+
+            <div class="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center gap-3.5 shadow-sm min-w-[160px]">
+                <span class="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
+                    <i class="fa-solid fa-file-circle-check text-base"></i>
+                </span>
+                <div>
+                    <p class="text-xs text-slate-400 dark:text-slate-500 font-medium">Tài liệu Active</p>
                     <p class="text-lg font-bold text-slate-800 dark:text-slate-200">@ViewBag.ActiveCount</p>
                 </div>
             </div>
-            <div class="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center gap-3 shadow-sm">
-                <span class="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400">
-                    <i class="fa-solid fa-spinner @(procCount > 0 ? "fa-spin" : "")"></i>
+
+            <div class="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center gap-3.5 shadow-sm min-w-[160px]">
+                <span class="w-10 h-10 rounded-lg bg-rose-100 dark:bg-rose-500/10 flex items-center justify-center text-rose-600 dark:text-rose-400 shrink-0">
+                    <i class="fa-solid fa-spinner @(procCount > 0 ? "fa-spin" : "") text-base"></i>
                 </span>
                 <div>
-                    <p class="text-xs text-slate-400">Đang xử lý / Khóa</p>
+                    <p class="text-xs text-slate-400 dark:text-slate-500 font-medium">Đang xử lý / Khóa</p>
                     <p class="text-lg font-bold text-slate-800 dark:text-slate-200">@procCount</p>
                 </div>
             </div>
+
         </div>
     </div>
 
@@ -110,7 +139,6 @@
 
                                 <td class="p-4 font-medium text-slate-900 dark:text-white">
                                     <i class="fa-regular fa-file-lines text-indigo-500 mr-2"></i>
-
                                     <a asp-action="ViewDocument" asp-controller="Admin" asp-route-id="@item.Id" target="_blank"
                                        class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 hover:underline transition-colors">
                                         @docName
