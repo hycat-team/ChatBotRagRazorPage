@@ -20,6 +20,8 @@ namespace RagChatbot.DataAccess.Data
         public DbSet<Department> Departments { get; set; }
         public DbSet<SubjectAssignment> SubjectAssignments { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
+
+        public DbSet<ContactMessage> ContactMessages { get; set; }
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

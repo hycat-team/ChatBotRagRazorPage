@@ -10,6 +10,9 @@
     // ─── ĐỌC DỮ LIỆU DOANH THU & PREMIUM TỪ CONTROLLER BẮN QUA ───
     long totalRevenue = ViewBag.TotalRevenue ?? 0; // Đơn vị: VND
     int premiumCount = ViewBag.PremiumCount ?? 0;   // Số lượng user Premium
+
+    // ─── ĐỌC ĐOẠN MỚI: SỐ LƯỢNG YÊU CẦU HỖ TRỢ CHỜ XỬ LÝ ───
+    int pendingContactsCount = ViewBag.PendingContactsCount ?? 0;
 }
 
 <div class="flex-1 p-6 overflow-y-auto bg-slate-50 dark:bg-slate-950">
@@ -35,7 +38,7 @@
             <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Giám sát hoạt động đóng góp học liệu RAG kết hợp theo dõi doanh thu gói Premium thực tế.</p>
         </div>
 
-        <div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-4 w-full xl:w-auto shrink-0">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 w-full xl:w-auto shrink-0">
 
             <div class="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center gap-3.5 shadow-sm min-w-[160px]">
                 <span class="w-10 h-10 rounded-lg bg-amber-100 dark:bg-amber-500/10 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
@@ -58,6 +61,18 @@
                     <p class="text-lg font-bold text-slate-800 dark:text-slate-200">@premiumCount <span class="text-xs font-normal text-slate-400">User</span></p>
                 </div>
             </div>
+
+            <a asp-controller="Admin" asp-action="Contacts" class="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center gap-3.5 shadow-sm min-w-[160px] hover:shadow-md hover:border-orange-400 dark:hover:border-orange-500/40 transition-all cursor-pointer">
+                <span class="w-10 h-10 rounded-lg bg-orange-100 dark:bg-orange-500/10 flex items-center justify-center text-orange-600 dark:text-orange-400 shrink-0">
+                    <i class="fa-solid fa-envelope-open-text text-sm"></i>
+                </span>
+                <div>
+                    <p class="text-xs text-slate-400 dark:text-slate-500 font-medium">Yêu cầu hỗ trợ</p>
+                    <p class="text-lg font-bold text-slate-800 dark:text-slate-200">
+                        @pendingContactsCount <span class="text-xs font-normal text-slate-400">Phiếu</span>
+                    </p>
+                </div>
+            </a>
 
             <div class="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center gap-3.5 shadow-sm min-w-[160px]">
                 <span class="w-10 h-10 rounded-lg bg-emerald-100 dark:bg-emerald-500/10 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">

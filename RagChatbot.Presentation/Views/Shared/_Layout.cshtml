@@ -112,7 +112,7 @@
         }
 
         /* Modal overlay */
-        #confirmModal {
+        #confirmModal, #contactModal {
             backdrop-filter: blur(4px);
         }
     </style>
@@ -166,6 +166,11 @@
                            class="nav-link flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors">
                             <i class="fa-solid fa-book-open text-xs"></i> Thư viện tài liệu
                         </a>
+
+                        <button onclick="toggleContactModal(true)"
+                                class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-300 hover:text-orange-600 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-500/10 transition-colors cursor-pointer">
+                            <i class="fa-solid fa-triangle-exclamation text-xs text-orange-500 animate-pulse"></i> Báo lỗi & Góp ý
+                        </button>
                     }
 
                     @if (User.IsInRole("Lecturer") || User.IsInRole("HeadOfDepartment"))
@@ -222,6 +227,43 @@
         </div>
     </div>
 
+    <div id="contactModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 dark:bg-slate-950/80 backdrop-blur-sm">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-md mx-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden">
+            <div class="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex items-center justify-between">
+                <h3 class="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-sm sm:text-base">
+                    <i class="fa-solid fa-paper-plane text-indigo-500"></i> Gửi Yêu Cầu Hỗ Trợ
+                </h3>
+                <button onclick="toggleContactModal(false)" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="p-5 space-y-4 text-left">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Loại yêu cầu</label>
+                    <select id="contactType" class="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-100 cursor-pointer">
+                        <option value="0">Góp ý cải tiến hệ thống</option>
+                        <option value="1">Báo lỗi Chatbot (RAG sai kiến thức)</option>
+                        <option value="2">Lỗi tài khoản / Premium</option>
+                        <option value="3">Khác</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Nội dung chi tiết</label>
+                    <textarea id="contactContent" rows="4" placeholder="Nhập chi tiết lỗi hoặc ý kiến đóng góp của bạn tại đây..."
+                              class="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-100 placeholder-slate-400 resize-none"></textarea>
+                </div>
+            </div>
+            <div class="p-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2.5 bg-slate-50/50 dark:bg-slate-900/30">
+                <button onclick="toggleContactModal(false)" class="px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors">
+                    Hủy bỏ
+                </button>
+                <button onclick="submitContactForm()" id="btnSubmitContact" class="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 rounded-lg transition-colors flex items-center gap-2 shadow-md shadow-indigo-500/10">
+                    <i class="fa-solid fa-circle-check"></i> Gửi đi
+                </button>
+            </div>
+        </div>
+    </div>
+
     <main class="flex-1 overflow-hidden flex flex-col">
         @RenderBody()
     </main>
@@ -245,6 +287,65 @@
             if (_confirmCallback) _confirmCallback();
             closeConfirmModal();
         });
+
+        // ── 🔥 Hàm Điều Khiển Contact Modal (Đóng/Mở Pop-up) ─────────────────
+        function toggleContactModal(show) {
+            const modal = document.getElementById("contactModal");
+            if (show) {
+                modal.classList.remove("hidden");
+                modal.classList.add("flex");
+                document.getElementById("contactContent").value = "";
+            } else {
+                modal.classList.add("hidden");
+                modal.classList.remove("flex");
+            }
+        }
+
+        // ── 🔥 Hàm AJAX Gửi Liên Hệ/Báo Lỗi Lên Controller ─────────────────
+        async function submitContactForm() {
+            const contentInput = document.getElementById("contactContent");
+            const typeInput = document.getElementById("contactType");
+            const btnSubmit = document.getElementById("btnSubmitContact");
+
+            const content = contentInput.value.trim();
+            const type = typeInput.value;
+
+            if (!content) {
+                alert("Vui lòng nhập nội dung góp ý hoặc báo lỗi trước khi gửi!");
+                contentInput.focus();
+                return;
+            }
+
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang gửi...`;
+
+            const formData = new FormData();
+            formData.append("content", content);
+            formData.append("type", type);
+            formData.append("relatedId", "");
+
+            try {
+                const response = await fetch('/Contact/SendContact', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    alert(result.message);
+                    toggleContactModal(false);
+                } else {
+                    alert("Thất bại: " + result.message);
+                }
+            } catch (error) {
+                console.error("Lỗi gửi liên hệ:", error);
+                alert("Có lỗi kết nối hệ thống, vui lòng thử lại sau!");
+            } finally {
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = `<i class="fa-solid fa-circle-check"></i> Gửi đi`;
+            }
+        }
 
         // Tối ưu hóa logic Highlighting Nav Link linh hoạt theo URL cụ thể
         const currentPath = window.location.pathname.toLowerCase().replace(/\/$/, "");

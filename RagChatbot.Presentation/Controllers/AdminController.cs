@@ -451,8 +451,20 @@ namespace RagChatbot.Presentation.Controllers
         }
 
         [HttpGet]
+        public async Task<IActionResult> Contacts()
+        {
+            var contactMessages = await _context.ContactMessages
+                                        .Include(c => c.User)
+                                        .OrderByDescending(c => c.CreatedAt)
+                                        .ToListAsync();
+
+            return View(contactMessages);
+        }
+
+        [HttpGet]
         public async Task<IActionResult> Dashboard()
         {
+            // 1. Lấy 10 tài liệu học liệu mới nhất
             var documents = _context.Documents
                                     .Include(d => d.Subject)
                                     .OrderByDescending(d => d.UploadedAt)
@@ -465,10 +477,8 @@ namespace RagChatbot.Presentation.Controllers
 
             var departments = _context.Departments.ToList();
 
-
             ViewBag.ActiveCount = _context.Documents.Count(d => d.IsActive == true);
             ViewBag.ProcessingCount = _context.Documents.Count(d => d.IsActive == false);
-
 
             int premiumUsersCount = _userRepository.Query().Count(u => u.Subscription == AppUser.SubscriptionType.Premium);
 
@@ -477,6 +487,8 @@ namespace RagChatbot.Presentation.Controllers
 
             ViewBag.PremiumCount = premiumUsersCount;
             ViewBag.TotalRevenue = totalRevenue;
+
+            ViewBag.PendingContactsCount = _context.ContactMessages.Count(c => c.Status == ContactStatus.Pending);
 
             ViewBag.Uploaders = uploaders;
             ViewBag.Departments = departments;
