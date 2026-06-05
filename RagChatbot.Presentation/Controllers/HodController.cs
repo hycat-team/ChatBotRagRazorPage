@@ -54,32 +54,6 @@ namespace RagChatbot.Presentation.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> CreateSubject(string code, string name)
-        {
-            var user = await GetCurrentUser();
-            if (user == null) return Unauthorized();
-
-            if (!string.IsNullOrWhiteSpace(code) && !string.IsNullOrWhiteSpace(name))
-            {
-                var subject = new Subject
-                {
-                    Code = code,
-                    Name = name,
-                    UserId = user.Id,
-                    DepartmentId = user.DepartmentId
-                };
-                
-                _context.Subjects.Add(subject);
-                await _context.SaveChangesAsync();
-                
-                await _auditLogService.LogAsync(user.Id, "Create Subject", subject.Id.ToString(), $"Code: {code}, Name: {name}");
-                TempData["Success"] = "Thêm môn học thành công.";
-            }
-
-            return RedirectToAction("Index");
-        }
-
-        [HttpPost]
         public async Task<IActionResult> AssignLecturer(int subjectId, int lecturerId)
         {
             var user = await GetCurrentUser();

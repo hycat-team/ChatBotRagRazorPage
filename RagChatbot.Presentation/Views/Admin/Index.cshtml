@@ -85,11 +85,16 @@
                                class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all" />
                     </div>
                     
-                    <button type="submit"
-                        class="w-full mt-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold py-3 px-4 rounded-xl shadow-sm shadow-emerald-500/30 transition-all flex items-center justify-center gap-2">
-                        <span>Tạo tài khoản</span>
-                        <i class="fa-solid fa-arrow-right text-xs"></i>
-                    </button>
+                    <div class="flex gap-2 mt-2">
+                        <button type="submit"
+                            class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold py-3 px-2 rounded-xl shadow-sm shadow-emerald-500/30 transition-all flex items-center justify-center gap-1">
+                            <span>Import CSV</span>
+                        </button>
+                        <button type="button" onclick="openSingleUserModal()"
+                            class="flex-1 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-sm font-semibold py-3 px-2 rounded-xl transition-all flex items-center justify-center gap-1 border border-slate-200 dark:border-slate-700">
+                            <span>Tạo 1 TK</span>
+                        </button>
+                    </div>
                 </form>
             </div>
         </div>
@@ -313,6 +318,66 @@
             </div>
         </form>
     </div>
+</div><!-- Single User Modal -->
+<div id="singleUserModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 dark:bg-slate-950/80 backdrop-blur-sm">
+    <div class="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-slate-200 dark:border-slate-800">
+        <div class="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+            <h3 class="text-lg font-bold text-gray-900 dark:text-white">Tạo 1 Tài khoản</h3>
+            <button onclick="closeSingleUserModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <form asp-controller="Admin" asp-action="CreateSingleUser" method="post">
+            <div class="p-6 space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">Họ</label>
+                        <input type="text" name="firstName" required class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20" />
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">Tên</label>
+                        <input type="text" name="lastName" required class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20" />
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">Email</label>
+                    <input type="email" name="email" required class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20" />
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">Mật khẩu</label>
+                    <input type="text" name="password" value="123456" required class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20" />
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">Phân quyền</label>
+                    <select name="role" id="singleUserRole" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20" onchange="toggleSingleUserDepartment()">
+                        <option value="Student">Học sinh (Student)</option>
+                        <option value="Lecturer">Giảng viên (Lecturer)</option>
+                    </select>
+                </div>
+                <div id="singleUserDeptWrapper" style="display: none;">
+                    <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">Bộ môn</label>
+                    <select name="departmentId" class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2 text-sm text-gray-900 dark:text-white outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20">
+                        <option value="">-- Vui lòng chọn --</option>
+                        @if(ViewBag.Departments != null)
+                        {
+                            foreach(var dept in ViewBag.Departments)
+                            {
+                                <option value="@dept.Id">@dept.Name</option>
+                            }
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex justify-end gap-3">
+                <button type="button" onclick="closeSingleUserModal()" class="px-4 py-2 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors">
+                    Hủy
+                </button>
+                <button type="submit" class="px-4 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all shadow-sm shadow-emerald-500/30">
+                    Tạo tài khoản
+                </button>
+            </div>
+        </form>
+    </div>
 </div>
 
 <script>
@@ -334,6 +399,26 @@
 
     function closeUpdateLecturerDeptModal() {
         document.getElementById('updateLecturerDeptModal').classList.add('hidden');
+    }
+
+    function toggleSingleUserDepartment() {
+        var role = document.getElementById("singleUserRole").value;
+        var deptWrapper = document.getElementById("singleUserDeptWrapper");
+        if (role === "Lecturer") {
+            deptWrapper.style.display = "block";
+        } else {
+            deptWrapper.style.display = "none";
+        }
+    }
+
+    function openSingleUserModal() {
+        document.getElementById('singleUserModal').classList.remove('hidden');
+        document.getElementById('singleUserModal').classList.add('flex');
+    }
+
+    function closeSingleUserModal() {
+        document.getElementById('singleUserModal').classList.add('hidden');
+        document.getElementById('singleUserModal').classList.remove('flex');
     }
 </script>
 
