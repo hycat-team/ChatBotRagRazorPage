@@ -33,31 +33,7 @@
         <!-- ── Forms Row ──────────────────────────────────────── -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
 
-            <!-- Add Subject -->
-            @if (User.IsInRole("HeadOfDepartment"))
-            {
-                <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm transition-colors duration-200">
-                    <h2 class="text-sm font-bold text-gray-800 dark:text-slate-100 mb-4 flex items-center gap-2">
-                        <i class="fa-solid fa-plus text-emerald-500 dark:text-emerald-400 text-xs"></i> Tạo môn học mới
-                    </h2>
-                    <form asp-action="CreateSubject" method="post" class="space-y-3">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-300 mb-1">Mã môn</label>
-                            <input type="text" name="code" required placeholder="VD: TRIET01"
-                                class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-gray-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200 dark:focus:ring-emerald-500/20 outline-none transition-all" />
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 dark:text-slate-300 mb-1">Tên môn học</label>
-                            <input type="text" name="name" required placeholder="VD: Triết học Mác – Lê Nin"
-                                class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-gray-800 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200 dark:focus:ring-emerald-500/20 outline-none transition-all" />
-                        </div>
-                        <button type="submit"
-                            class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold py-2 rounded-lg shadow-md shadow-emerald-600/20 transition-all">
-                            Tạo môn học
-                        </button>
-                    </form>
-                </div>
-            }
+
 
             <!-- Upload Document -->
             @if (User.IsInRole("Lecturer") || User.IsInRole("HeadOfDepartment"))

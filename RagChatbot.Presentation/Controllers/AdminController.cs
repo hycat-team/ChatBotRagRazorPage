@@ -295,6 +295,80 @@ namespace RagChatbot.Presentation.Controllers
             return RedirectToAction("Departments");
         }
 
+        public async Task<IActionResult> Subjects()
+        {
+            var subjects = await _context.Subjects
+                .Include(s => s.Department)
+                .OrderByDescending(s => s.Id)
+                .ToListAsync();
+            
+            ViewBag.Departments = await _context.Departments.ToListAsync();
+            return View(subjects);
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> CreateSubject(string code, string name, int departmentId)
+        {
+            if (!string.IsNullOrWhiteSpace(code) && !string.IsNullOrWhiteSpace(name) && departmentId > 0)
+            {
+                var adminId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+                var subject = new Subject
+                {
+                    Code = code,
+                    Name = name,
+                    DepartmentId = departmentId,
+                    UserId = adminId
+                };
+                
+                _context.Subjects.Add(subject);
+                await _context.SaveChangesAsync();
+                
+                await _auditLogService.LogAsync(adminId, "Create Subject", subject.Id.ToString(), $"Code: {code}, Name: {name}, DeptId: {departmentId}");
+                TempData["Success"] = "Tạo môn học thành công.";
+            }
+            else
+            {
+                TempData["Error"] = "Vui lòng nhập đủ thông tin.";
+            }
+
+            return RedirectToAction("Subjects");
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> CreateSingleUser(string email, string firstName, string lastName, string password, string role, int? departmentId)
+        {
+            if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName) || string.IsNullOrWhiteSpace(password))
+            {
+                TempData["Error"] = "Vui lòng nhập đủ thông tin.";
+                return RedirectToAction("Index");
+            }
+
+            var existingUser = await _userRepository.GetByEmailAsync(email);
+            if (existingUser != null)
+            {
+                TempData["Error"] = "Email đã tồn tại.";
+                return RedirectToAction("Index");
+            }
+
+            var user = new AppUser
+            {
+                Email = email,
+                FirstName = firstName,
+                LastName = lastName,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+                Role = role ?? "Lecturer",
+                DepartmentId = departmentId
+            };
+
+            await _userRepository.AddAsync(user);
+
+            var adminId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+            await _auditLogService.LogAsync(adminId, "Create Single User", user.Id.ToString(), $"Email: {email}, Role: {user.Role}");
+
+            TempData["Success"] = "Tạo người dùng thành công.";
+            return RedirectToAction("Index");
+        }
+
         public IActionResult HeadOfDepartments()
         {
             var hods = _userRepository.Query()
