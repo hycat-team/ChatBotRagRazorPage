@@ -10,6 +10,8 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace RagChatbot.Presentation.Controllers
@@ -364,7 +366,7 @@ namespace RagChatbot.Presentation.Controllers
                 Email = email,
                 FirstName = firstName,
                 LastName = lastName,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+                PasswordHash = HashPassword(password),
                 Role = role ?? "Lecturer",
                 DepartmentId = departmentId
             };
@@ -665,6 +667,14 @@ namespace RagChatbot.Presentation.Controllers
 
             string downloadName = document.FileName ?? Path.GetFileName(absolutePath);
             return PhysicalFile(Path.GetFullPath(absolutePath), contentType, downloadName);
+        }
+
+        private string HashPassword(string password)
+        {
+            using var sha256 = SHA256.Create();
+            var bytes = Encoding.UTF8.GetBytes(password);
+            var hash = sha256.ComputeHash(bytes);
+            return Convert.ToBase64String(hash);
         }
     }
 }

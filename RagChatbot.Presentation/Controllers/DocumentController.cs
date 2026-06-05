@@ -111,7 +111,7 @@ namespace RagChatbot.Presentation.Controllers
             return View(viewModel);
         }
 
-        [Authorize(Roles = "HeadOfDepartment,Lecturer")]
+        [Authorize(Roles = "Admin,HeadOfDepartment")]
         [HttpPost]
         public async Task<IActionResult> Upload(
             int subjectId,
@@ -282,7 +282,7 @@ namespace RagChatbot.Presentation.Controllers
 
         // ─── Quản lý Document ────────────────────────────────────────────────
 
-        [Authorize(Roles = "Admin,HeadOfDepartment,Lecturer")]
+        [Authorize(Roles = "Admin,HeadOfDepartment")]
         [HttpPost]
         public async Task<IActionResult> DeleteDocument(int id)
         {
@@ -291,9 +291,20 @@ namespace RagChatbot.Presentation.Controllers
 
             if (document == null) return Json(new { success = false, message = "Document not found." });
             
-            if (document.UploaderId != userId && !User.IsInRole("Admin"))
+            var isHod = User.IsInRole("HeadOfDepartment");
+            bool canDelete = User.IsInRole("Admin");
+            if (isHod && !canDelete)
             {
-                return Json(new { success = false, message = "Bạn không có quyền xóa tài liệu của người khác." });
+                var subject = await _subjectService.GetByIdAsync(document.SubjectId);
+                var hodUser = _context.AppUsers.FirstOrDefault(u => u.Id == userId);
+                if (subject != null && subject.DepartmentId == hodUser?.DepartmentId)
+                {
+                    canDelete = true;
+                }
+            }
+            if (!canDelete)
+            {
+                return Json(new { success = false, message = "Bạn không có quyền xóa tài liệu này." });
             }
 
             await _documentService.DeleteAsync(id);
@@ -301,7 +312,7 @@ namespace RagChatbot.Presentation.Controllers
             return Json(new { success = true });
         }
 
-        [Authorize(Roles = "Admin,HeadOfDepartment,Lecturer")]
+        [Authorize(Roles = "Admin,HeadOfDepartment")]
         [HttpPost]
         public async Task<IActionResult> ToggleDocumentActive(int id)
         {
@@ -310,7 +321,7 @@ namespace RagChatbot.Presentation.Controllers
 
             if (document == null) return Json(new { success = false, message = "Document not found." });
             
-            bool canToggle = document.UploaderId == userId || User.IsInRole("Admin");
+            bool canToggle = User.IsInRole("Admin");
             if (!canToggle && User.IsInRole("HeadOfDepartment"))
             {
                 var subject = await _subjectService.GetByIdAsync(document.SubjectId);
@@ -331,7 +342,7 @@ namespace RagChatbot.Presentation.Controllers
             return Json(new { success = true, isActive = document.IsActive });
         }
 
-        [Authorize(Roles = "Admin,HeadOfDepartment,Lecturer")]
+        [Authorize(Roles = "Admin,HeadOfDepartment")]
         [HttpPost]
         public async Task<IActionResult> RenameDocument(int id, string displayName)
         {
@@ -340,9 +351,20 @@ namespace RagChatbot.Presentation.Controllers
 
             if (document == null) return Json(new { success = false, message = "Document not found." });
             
-            if (document.UploaderId != userId && !User.IsInRole("Admin"))
+            var isHod = User.IsInRole("HeadOfDepartment");
+            bool canRename = User.IsInRole("Admin");
+            if (isHod && !canRename)
             {
-                return Json(new { success = false, message = "Bạn không có quyền đổi tên tài liệu của người khác." });
+                var subject = await _subjectService.GetByIdAsync(document.SubjectId);
+                var hodUser = _context.AppUsers.FirstOrDefault(u => u.Id == userId);
+                if (subject != null && subject.DepartmentId == hodUser?.DepartmentId)
+                {
+                    canRename = true;
+                }
+            }
+            if (!canRename)
+            {
+                return Json(new { success = false, message = "Bạn không có quyền đổi tên tài liệu này." });
             }
 
             document.DisplayName = displayName.Trim();
