@@ -40,7 +40,7 @@
         
         <!-- Form Tạo HOD -->
         <div class="lg:col-span-1">
-            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm sticky top-6">
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm sticky top-20">
                 <h2 class="text-base font-bold text-gray-900 dark:text-white mb-5 flex items-center gap-2">
                     <i class="fa-solid fa-user-plus text-orange-500 dark:text-orange-400"></i>
                     Tạo tài khoản HOD
@@ -113,7 +113,6 @@
                             <tr>
                                 <th scope="col" class="px-6 py-4">Tài khoản</th>
                                 <th scope="col" class="px-6 py-4">Bộ môn quản lý</th>
-                                <th scope="col" class="px-6 py-4">Trạng thái</th>
                                 <th scope="col" class="px-6 py-4 text-center">Thao tác</th>
                             </tr>
                         </thead>
@@ -121,7 +120,7 @@
                             @if (!Model.Any())
                             {
                                 <tr>
-                                    <td colspan="4" class="px-6 py-12 text-center text-slate-500">Chưa có Trưởng bộ môn nào.</td>
+                                    <td colspan="3" class="px-6 py-12 text-center text-slate-500">Chưa có Trưởng bộ môn nào.</td>
                                 </tr>
                             }
                             else
@@ -136,7 +135,9 @@
                                                 </div>
                                                 <div>
                                                     <div class="font-bold text-gray-900 dark:text-slate-100">
-                                                        @user.LastName @user.FirstName
+                                                        <a href="javascript:void(0)" onclick="openTermHistoryModal(@user.Id, '@user.LastName @user.FirstName')" class="hover:text-orange-500 transition-colors">
+                                                            @user.LastName @user.FirstName
+                                                        </a>
                                                         <span class="text-[10px] text-slate-400 font-mono ml-1">#@user.Id</span>
                                                     </div>
                                                     <div class="text-xs text-slate-500 mt-0.5">
@@ -149,20 +150,6 @@
                                             @(user.Department != null ? user.Department.Name : "Chưa gắn bộ môn")
                                         </td>
                                         <td class="px-6 py-4">
-                                            @if (user.IsActive)
-                                            {
-                                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300">
-                                                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Hoạt động
-                                                </span>
-                                            }
-                                            else
-                                            {
-                                                <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-rose-100 text-rose-800 dark:bg-rose-500/20 dark:text-rose-300">
-                                                    <span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>Đã khóa
-                                                </span>
-                                            }
-                                        </td>
-                                        <td class="px-6 py-4">
                                                 <div class="flex items-center justify-end gap-1">
                                                     <button onclick="openEditHodModal(@user.Id, @(user.DepartmentId.HasValue ? user.DepartmentId.Value.ToString() : "null"), '@user.Email')"
                                                         class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-colors"
@@ -170,35 +157,30 @@
                                                         <i class="fa-solid fa-pen text-sm"></i>
                                                     </button>
                                                     
-                                                    <form asp-controller="Admin" asp-action="ToggleUserStatus" method="post" class="m-0">
-                                                    <input type="hidden" name="id" value="@user.Id" />
-                                                    <button type="submit" 
-                                                        onclick="return confirm('Bạn có chắc chắn muốn @(user.IsActive ? "khóa" : "mở khóa") tài khoản này?');"
-                                                        class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-colors"
-                                                        title="@(user.IsActive ? "Khóa tài khoản" : "Mở khóa tài khoản")">
-                                                        <i class="fa-solid @(user.IsActive ? "fa-lock" : "fa-unlock") text-sm"></i>
-                                                    </button>
-                                                </form>
-                                                <form asp-controller="Admin" asp-action="DeleteUser" method="post" class="m-0">
-                                                    <input type="hidden" name="id" value="@user.Id" />
-                                                    <button type="submit" 
-                                                        onclick="return confirm('Bạn có chắc chắn muốn xóa tài khoản này?');"
-                                                        class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
-                                                        title="Xóa tài khoản">
-                                                        <i class="fa-solid fa-trash-can text-sm"></i>
-                                                    </button>
-                                                </form>
-                                                <form asp-controller="Admin" asp-action="DemoteToLecturer" method="post" class="m-0">
-                                                    <input type="hidden" name="id" value="@user.Id" />
-                                                    <button type="submit" 
-                                                        onclick="return confirm('Bạn có chắc chắn muốn giáng chức người này xuống làm Giảng viên?');"
-                                                        class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-500/10 transition-colors"
-                                                        title="Giáng xuống Giảng viên">
-                                                        <i class="fa-solid fa-arrow-down text-sm"></i>
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </td>
+                                                    @if (user.DepartmentId.HasValue)
+                                                    {
+                                                        <form asp-controller="Admin" asp-action="EndHodTerm" method="post" class="m-0">
+                                                            <input type="hidden" name="id" value="@user.Id" />
+                                                            <button type="submit" 
+                                                                onclick="return confirm('Bạn có chắc chắn muốn kết thúc nhiệm kỳ của người này?');"
+                                                                class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-500/10 transition-colors"
+                                                                title="Kết thúc nhiệm kỳ">
+                                                                <i class="fa-solid fa-stopwatch text-sm"></i>
+                                                            </button>
+                                                        </form>
+                                                    }
+                                                    
+                                                    <form asp-controller="Admin" asp-action="DeleteUser" method="post" class="m-0">
+                                                        <input type="hidden" name="id" value="@user.Id" />
+                                                        <button type="submit" 
+                                                            onclick="return confirm('Bạn có chắc chắn muốn xóa tài khoản này?');"
+                                                            class="w-8 h-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                                                            title="Xóa tài khoản">
+                                                            <i class="fa-solid fa-trash-can text-sm"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
                                     </tr>
                                 }
                             }
@@ -247,6 +229,29 @@
     </div>
 </div>
 
+<!-- Term History Modal -->
+<div id="termHistoryModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-lg flex flex-col shadow-2xl transition-all scale-95 duration-200" id="termHistoryModalContainer">
+        <div class="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+            <div>
+                <h3 class="text-base font-bold text-gray-800 dark:text-slate-100">Lịch sử Nhiệm kỳ</h3>
+                <p class="text-xs text-slate-500 dark:text-slate-400 font-medium mt-0.5" id="termHistoryUserName"></p>
+            </div>
+            <button onclick="closeTermHistoryModal()" class="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </div>
+        <div class="p-6">
+            <ul id="termHistoryList" class="space-y-4">
+                <!-- Dynamically populated -->
+            </ul>
+        </div>
+        <div class="px-6 py-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end bg-slate-50 dark:bg-slate-800/50 rounded-b-3xl">
+            <button type="button" onclick="closeTermHistoryModal()" class="px-5 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors">Đóng</button>
+        </div>
+    </div>
+</div>
+
 <style>
     @@keyframes fadeIn {
         from { opacity: 0; transform: translateY(-10px); }
@@ -278,6 +283,62 @@
     function closeEditHodModal() {
         const modal = document.getElementById('editHodModal');
         const container = document.getElementById('editHodModalContainer');
+        container.classList.remove('scale-100');
+        container.classList.add('scale-95');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 200);
+    }
+
+    async function openTermHistoryModal(userId, userName) {
+        document.getElementById('termHistoryUserName').textContent = userName;
+        const list = document.getElementById('termHistoryList');
+        list.innerHTML = '<li class="text-center text-slate-500 text-sm py-4"><i class="fa-solid fa-circle-notch fa-spin"></i> Đang tải...</li>';
+        
+        const modal = document.getElementById('termHistoryModal');
+        const containerEl = document.getElementById('termHistoryModalContainer');
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            containerEl.classList.remove('scale-95');
+            containerEl.classList.add('scale-100');
+        }, 10);
+
+        try {
+            const res = await fetch(`/Admin/GetHodTermHistory?userId=${userId}`);
+            const data = await res.json();
+            
+            list.innerHTML = '';
+            if (data.length === 0) {
+                list.innerHTML = '<li class="text-center text-slate-500 text-sm py-4">Chưa có lịch sử nhiệm kỳ.</li>';
+                return;
+            }
+
+            data.forEach(item => {
+                const endAtStr = item.endAt ? item.endAt : '...';
+                const statusClass = item.endAt ? 'bg-slate-100 text-slate-600' : 'bg-emerald-100 text-emerald-700 font-bold';
+                
+                list.innerHTML += `
+                    <li class="flex items-center justify-between p-3 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30">
+                        <div class="flex items-center gap-3">
+                            <span class="w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-500/20 text-orange-600 dark:text-orange-400 flex items-center justify-center">
+                                <i class="fa-solid fa-building"></i>
+                            </span>
+                            <span class="text-sm font-semibold text-slate-800 dark:text-slate-200">${item.departmentName}</span>
+                        </div>
+                        <span class="text-xs px-2.5 py-1 rounded-lg ${statusClass}">
+                            ${item.startAt} - ${endAtStr}
+                        </span>
+                    </li>
+                `;
+            });
+        } catch (e) {
+            list.innerHTML = '<li class="text-center text-red-500 text-sm py-4">Lỗi khi tải dữ liệu!</li>';
+        }
+    }
+
+    function closeTermHistoryModal() {
+        const modal = document.getElementById('termHistoryModal');
+        const container = document.getElementById('termHistoryModalContainer');
         container.classList.remove('scale-100');
         container.classList.add('scale-95');
         setTimeout(() => {

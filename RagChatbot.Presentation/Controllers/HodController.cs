@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using RagChatbot.Business.Interfaces;
 using RagChatbot.DataAccess.Interfaces;
@@ -41,60 +41,10 @@ namespace RagChatbot.Presentation.Controllers
 
             // Lấy danh sách môn học thuộc bộ môn của HOD
             var subjects = await _context.Subjects
-                .Include(s => s.Assignments)
-                .ThenInclude(a => a.Lecturer)
                 .Where(s => s.DepartmentId == user.DepartmentId)
                 .ToListAsync();
 
-            ViewBag.Lecturers = await _context.AppUsers
-                .Where(u => u.Role == "Lecturer") // Có thể giới hạn Lecturer thuộc bộ môn nếu muốn
-                .ToListAsync();
-
             return View(subjects);
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> AssignLecturer(int subjectId, int lecturerId)
-        {
-            var user = await GetCurrentUser();
-            if (user == null) return Unauthorized();
-
-            var subject = await _context.Subjects.FindAsync(subjectId);
-            if (subject != null && subject.DepartmentId == user.DepartmentId)
-            {
-                var existingAssign = await _context.SubjectAssignments
-                    .FirstOrDefaultAsync(sa => sa.SubjectId == subjectId && sa.LecturerId == lecturerId);
-
-                if (existingAssign == null)
-                {
-                    _context.SubjectAssignments.Add(new SubjectAssignment { SubjectId = subjectId, LecturerId = lecturerId });
-                    await _context.SaveChangesAsync();
-                    await _auditLogService.LogAsync(user.Id, "Assign Lecturer", subjectId.ToString(), $"LecturerId: {lecturerId}");
-                    TempData["Success"] = "Gán giảng viên thành công.";
-                }
-            }
-
-            return RedirectToAction("Index");
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> RemoveLecturer(int subjectId, int lecturerId)
-        {
-            var user = await GetCurrentUser();
-            if (user == null) return Unauthorized();
-
-            var assignment = await _context.SubjectAssignments
-                .FirstOrDefaultAsync(sa => sa.SubjectId == subjectId && sa.LecturerId == lecturerId);
-
-            if (assignment != null)
-            {
-                _context.SubjectAssignments.Remove(assignment);
-                await _context.SaveChangesAsync();
-                await _auditLogService.LogAsync(user.Id, "Remove Lecturer", subjectId.ToString(), $"LecturerId: {lecturerId}");
-                TempData["Success"] = "Hủy gán giảng viên thành công.";
-            }
-
-            return RedirectToAction("Index");
         }
     }
 }

@@ -48,13 +48,13 @@ namespace RagChatbot.Presentation.Controllers
             return int.TryParse(userIdStr, out int userId) ? userId : 0;
         }
 
-        [Authorize(Roles = "Admin,Lecturer,HeadOfDepartment,Student")]
+        [Authorize(Roles = "Admin,HeadOfDepartment,Student")]
         public async Task<IActionResult> Index()
         {
             var userId = GetCurrentUserId();
             var isAdmin = User.IsInRole("Admin");
             var isHod = User.IsInRole("HeadOfDepartment");
-            var isLecturer = User.IsInRole("Lecturer");
+
             var isStudent = User.IsInRole("Student");
 
             var subjectsQuery = _context.Subjects.Include(s => s.Documents).AsQueryable();
@@ -75,10 +75,7 @@ namespace RagChatbot.Presentation.Controllers
                     subjectsQuery = subjectsQuery.Where(s => false);
                 }
             }
-            else if (isLecturer)
-            {
-                subjectsQuery = subjectsQuery.Where(s => s.Assignments.Any(a => a.LecturerId == userId));
-            }
+
             else
             {
                 // Phòng hờ trường hợp Role lạ khác không có quyền
@@ -135,15 +132,6 @@ namespace RagChatbot.Presentation.Controllers
                 if (subject.DepartmentId != hodUser?.DepartmentId)
                 {
                     TempData["Error"] = "Môn học này không thuộc bộ môn của bạn.";
-                    return RedirectToAction(nameof(Index));
-                }
-            }
-            else
-            {
-                var isAssigned = _context.SubjectAssignments.Any(sa => sa.SubjectId == subjectId && sa.LecturerId == userId);
-                if (!isAssigned)
-                {
-                    TempData["Error"] = "Bạn chưa được gán để quản lý môn học này.";
                     return RedirectToAction(nameof(Index));
                 }
             }
@@ -393,7 +381,7 @@ namespace RagChatbot.Presentation.Controllers
             return Json(indexedDocs);
         }
 
-        [Authorize(Roles = "Admin,HeadOfDepartment,Lecturer")]
+        [Authorize(Roles = "Admin,HeadOfDepartment")]
         [HttpGet]
         public async Task<IActionResult> GetDocumentChunks(int id, [FromServices] IDocumentChunkRepository chunkRepository)
         {
@@ -430,63 +418,6 @@ namespace RagChatbot.Presentation.Controllers
             return Json(new { success = true, chunks = result });
         }
 
-        // ─── Quản lý Giảng viên môn học (Cho Trưởng bộ môn) ────────────────────────────────────────────────
-
-        [Authorize(Roles = "HeadOfDepartment")]
-        [HttpGet]
-        public async Task<IActionResult> GetSubjectAssignments(int subjectId)
-        {
-            var userId = GetCurrentUserId();
-            var hodUser = _context.AppUsers.FirstOrDefault(u => u.Id == userId);
-            var subject = await _subjectService.GetByIdAsync(subjectId);
-            
-            if (subject == null || subject.DepartmentId != hodUser?.DepartmentId)
-            {
-                return Json(new { success = false, message = "Bạn không có quyền quản lý môn học này." });
-            }
-
-            var departmentLecturers = _context.AppUsers
-                .Where(u => u.Role == "Lecturer" && u.DepartmentId == hodUser.DepartmentId)
-                .Select(u => new { id = u.Id, name = $"{u.LastName} {u.FirstName}", email = u.Email })
-                .ToList();
-
-            var assignedLecturerIds = _context.SubjectAssignments
-                .Where(sa => sa.SubjectId == subjectId)
-                .Select(sa => sa.LecturerId)
-                .ToList();
-
-            return Json(new { success = true, lecturers = departmentLecturers, assignedIds = assignedLecturerIds });
-        }
-
-        [Authorize(Roles = "HeadOfDepartment")]
-        [HttpPost]
-        public async Task<IActionResult> UpdateSubjectAssignments(int subjectId, [FromBody] List<int> lecturerIds)
-        {
-            var userId = GetCurrentUserId();
-            var hodUser = _context.AppUsers.FirstOrDefault(u => u.Id == userId);
-            var subject = await _subjectService.GetByIdAsync(subjectId);
-            
-            if (subject == null || subject.DepartmentId != hodUser?.DepartmentId)
-            {
-                return Json(new { success = false, message = "Bạn không có quyền quản lý môn học này." });
-            }
-
-            var existingAssignments = _context.SubjectAssignments.Where(sa => sa.SubjectId == subjectId);
-            _context.SubjectAssignments.RemoveRange(existingAssignments);
-
-            if (lecturerIds != null && lecturerIds.Any())
-            {
-                var newAssignments = lecturerIds.Select(id => new RagChatbot.DataAccess.EntityModels.SubjectAssignment
-                {
-                    SubjectId = subjectId,
-                    LecturerId = id
-                });
-                _context.SubjectAssignments.AddRange(newAssignments);
-            }
-
-            await _context.SaveChangesAsync();
-            return Json(new { success = true });
-        }
 
         [Authorize(Roles = "Student")]
         [HttpGet]
@@ -539,7 +470,7 @@ namespace RagChatbot.Presentation.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = "Admin,Lecturer,HeadOfDepartment,Student")]
+        [Authorize(Roles = "Admin,HeadOfDepartment,Student")]
         public async Task<IActionResult> ViewDocument(int id)
         {
             if (User.IsInRole("Student"))

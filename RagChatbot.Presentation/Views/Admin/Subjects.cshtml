@@ -42,13 +42,19 @@
         
         <!-- Form Tạo Môn học -->
         <div class="lg:col-span-1">
-            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm sticky top-6">
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-sm sticky top-20">
                 <h2 class="text-base font-bold text-gray-900 dark:text-white mb-5 flex items-center gap-2">
                     <i class="fa-solid fa-plus text-emerald-500 dark:text-emerald-400"></i>
                     Tạo Môn học mới
                 </h2>
                 
-                <form asp-controller="Admin" asp-action="CreateSubject" method="post" class="space-y-4">
+                <!-- Tabs -->
+                <div class="flex gap-2 mb-6 p-1 bg-slate-100 dark:bg-slate-800/50 rounded-xl">
+                    <button type="button" onclick="switchSubjectTab('manual')" id="tabSubManual" class="flex-1 py-2 px-3 text-sm font-semibold rounded-lg bg-white dark:bg-slate-700 shadow-sm text-gray-900 dark:text-white transition-all">Tạo thủ công</button>
+                    <button type="button" onclick="switchSubjectTab('bulk')" id="tabSubBulk" class="flex-1 py-2 px-3 text-sm font-semibold rounded-lg text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-all">Import File</button>
+                </div>
+                
+                <form asp-controller="Admin" asp-action="CreateSubject" method="post" id="formSubManual" class="space-y-4">
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">Mã môn</label>
                         <input type="text" name="code" required placeholder="VD: TRIET01"
@@ -80,6 +86,37 @@
                         class="w-full mt-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold py-3 px-4 rounded-xl shadow-sm shadow-emerald-500/30 transition-all flex items-center justify-center gap-2">
                         <span>Tạo môn học</span>
                         <i class="fa-solid fa-plus text-xs"></i>
+                    </button>
+                </form>
+                
+                <form asp-controller="Admin" asp-action="CreateSubjectsBulk" method="post" enctype="multipart/form-data" id="formSubBulk" class="space-y-4 hidden">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">Bộ môn</label>
+                        <select name="departmentId" required
+                                class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-gray-900 dark:text-white outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 transition-all">
+                            <option value="">-- Chọn bộ môn --</option>
+                            @if (departments != null)
+                            {
+                                foreach (var dept in departments)
+                                {
+                                    <option value="@dept.Id">@dept.Name</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-1.5 uppercase tracking-wider">
+                            File .TXT / .CSV
+                        </label>
+                        <p class="text-[10px] text-slate-400 mb-2">Định dạng mỗi dòng: <code class="bg-slate-100 dark:bg-slate-800 px-1 rounded">CODE, Tên môn học</code></p>
+                        <input type="file" name="file" accept=".txt,.csv" required
+                               class="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-gray-900 dark:text-white placeholder-slate-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition-all" />
+                    </div>
+                    
+                    <button type="submit"
+                        class="w-full mt-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold py-3 px-4 rounded-xl shadow-sm shadow-emerald-500/30 transition-all flex items-center justify-center gap-2">
+                        <span>Import File</span>
+                        <i class="fa-solid fa-file-import text-xs"></i>
                     </button>
                 </form>
             </div>
@@ -142,9 +179,65 @@
     </div>
 </div>
 
+<script>
+    function confirmDeleteSubject(id, name) {
+        if (confirm(`Bạn có chắc chắn muốn xóa môn học "${name}" không?`)) {
+            const form = document.createElement('form');
+            form.method = 'post';
+            form.action = `/Admin/DeleteSubject/${id}`;
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+
+    function switchSubjectTab(tab) {
+        const manualTab = document.getElementById('tabSubManual');
+        const bulkTab = document.getElementById('tabSubBulk');
+        const manualForm = document.getElementById('formSubManual');
+        const bulkForm = document.getElementById('formSubBulk');
+
+        const activeClasses = ['bg-white', 'dark:bg-slate-700', 'shadow-sm', 'text-gray-900', 'dark:text-white'];
+        const inactiveClasses = ['text-slate-500', 'hover:text-slate-700', 'dark:text-slate-400', 'dark:hover:text-slate-200'];
+
+        if (tab === 'manual') {
+            manualForm.classList.remove('hidden');
+            bulkForm.classList.add('hidden');
+            
+            manualTab.classList.add(...activeClasses);
+            manualTab.classList.remove(...inactiveClasses);
+            
+            bulkTab.classList.remove(...activeClasses);
+            bulkTab.classList.add(...inactiveClasses);
+        } else {
+            manualForm.classList.add('hidden');
+            bulkForm.classList.remove('hidden');
+            
+            bulkTab.classList.add(...activeClasses);
+            bulkTab.classList.remove(...inactiveClasses);
+            
+            manualTab.classList.remove(...activeClasses);
+            manualTab.classList.add(...inactiveClasses);
+        }
+    }
+</script>
+
 <style>
     @@keyframes fadeIn {
         from { opacity: 0; transform: translateY(-10px); }
         to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .custom-scrollbar::-webkit-scrollbar {
+        width: 6px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: #cbd5e1;
+        border-radius: 20px;
+    }
+    .dark .custom-scrollbar::-webkit-scrollbar-thumb {
+        background-color: #334155;
     }
 </style>

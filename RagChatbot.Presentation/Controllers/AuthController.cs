@@ -35,7 +35,7 @@ namespace RagChatbot.Presentation.Controllers
                 }
 
                 // 2. Nếu là Giảng viên / Trưởng bộ môn -> Đẩy về kho tài liệu
-                if (User.IsInRole("Lecturer") || User.IsInRole("HeadOfDepartment"))
+                if (User.IsInRole("HeadOfDepartment"))
                 {
                     return RedirectToAction("Index", "Document");
                 }
@@ -101,7 +101,7 @@ namespace RagChatbot.Presentation.Controllers
             }
 
             // 2. Kiểm tra vai trò Giảng viên hoặc Trưởng bộ môn
-            if (user.Role == "Lecturer" || user.Role == "HeadOfDepartment")
+            if (user.Role == "HeadOfDepartment")
             {
                 return RedirectToAction("Index", "Document");
             }

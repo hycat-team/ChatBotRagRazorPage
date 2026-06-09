@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using RagChatbot.DataAccess.Data;
 using RagChatbot.Business.Services;
 
@@ -74,7 +74,7 @@ builder.Services.AddSingleton<IGoogleDriveService, GoogleDriveService>();
 builder.Services.AddSingleton<ILocalStorageService, LocalStorageService>();
 builder.Services.AddScoped<IVectorSearchService, VectorSearchService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
-builder.Services.AddScoped<IEmailService, DummyEmailService>();
+builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 
 // Register Background Service
 builder.Services.AddHostedService<DocumentProcessingJob>();

@@ -33,7 +33,7 @@ namespace RagChatbot.Presentation.Controllers
                 return RedirectToAction("Login", "Auth");
             }
 
-            if (User.IsInRole("Lecturer") || User.IsInRole("HeadOfDepartment"))
+            if (User.IsInRole("HeadOfDepartment"))
             {
                 return RedirectToAction("Index", "Document");
             }

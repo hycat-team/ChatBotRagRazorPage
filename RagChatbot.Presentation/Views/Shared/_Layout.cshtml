@@ -117,9 +117,9 @@
         }
     </style>
 </head>
-<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 h-screen flex flex-col overflow-hidden transition-colors duration-200">
+<body class="bg-slate-50 dark:bg-slate-950 text-slate-800 dark:text-slate-100 min-h-screen flex flex-col transition-colors duration-200">
 
-    <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex-shrink-0 z-30 shadow-sm transition-colors duration-200">
+    <header class="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex-shrink-0 z-30 shadow-sm transition-colors duration-200 sticky top-0">
         <div class="px-4 flex items-center justify-between h-14">
             <a asp-controller="Home" asp-action="Index"
                class="flex items-center gap-2.5 font-bold text-gray-800 dark:text-slate-100 text-base select-none">
@@ -189,10 +189,10 @@
                 @if (User.Identity?.IsAuthenticated == true)
                 {
                     <div class="flex items-center gap-3">
-                        <div class="flex items-center gap-2 text-sm text-slate-600 dark:text-emerald-100">
+                        <a href="/Profile" class="flex items-center gap-2 text-sm text-slate-600 dark:text-emerald-100 hover:bg-slate-100 dark:hover:bg-slate-800 px-3 py-1.5 rounded-xl transition-colors cursor-pointer" title="Xem hồ sơ">
                             <i class="fa-solid fa-circle-user text-lg text-emerald-500"></i>
                             <span class="font-medium text-gray-800 dark:text-slate-100">@User.Identity.Name</span>
-                        </div>
+                        </a>
                         <button id="themeToggleBtn" onclick="toggleTheme()" class="text-sm text-slate-500 dark:text-slate-300 hover:text-emerald-600 dark:hover:text-emerald-400 px-2 py-1 rounded transition-colors" title="Chuyển chế độ Sáng/Tối">
                             <i id="themeToggleIcon" class="fa-solid fa-moon"></i>
                         </button>
@@ -268,7 +268,7 @@
         </div>
     </div>
 
-    <main class="flex-1 overflow-hidden flex flex-col">
+    <main class="flex-1 flex flex-col">
         @RenderBody()
     </main>
 

@@ -44,7 +44,7 @@ namespace RagChatbot.Presentation.Controllers
 
         public async Task<IActionResult> Index(string searchEmail = "")
         {
-            var query = _userRepository.Query().Where(u => u.Role != "Admin");
+            var query = _userRepository.Query().Where(u => u.Role == "Student");
 
             if (!string.IsNullOrWhiteSpace(searchEmail))
             {
@@ -94,23 +94,15 @@ namespace RagChatbot.Presentation.Controllers
                 var success = await _authService.RegisterAsync(email, password, role, firstName, lastName);
                 if (success)
                 {
-                    if (role == "Lecturer" && departmentId.HasValue)
-                    {
-                        var user = _userRepository.Query().FirstOrDefault(u => u.Email == email);
-                        if (user != null)
-                        {
-                            user.DepartmentId = departmentId.Value;
-                            _userRepository.Update(user);
-                            await _userRepository.SaveChangesAsync();
-                        }
-                    }
+
 
                     if (emailService != null)
                     {
+                        var htmlBody = GetWelcomeEmailHtml(firstName, lastName, email, password);
                         await emailService.SendEmailAsync(
                             email,
-                            "Tài khoản hệ thống RAG Chatbot",
-                            $"Xin chào {lastName} {firstName},\n\nTài khoản của bạn đã được tạo.\nEmail đăng nhập: {email}\nMật khẩu mặc định: {password}\n\nVui lòng đăng nhập và đổi mật khẩu."
+                            "Thông tin tài khoản RAG Chatbot",
+                            htmlBody
                         );
                     }
 
@@ -134,35 +126,25 @@ namespace RagChatbot.Presentation.Controllers
             return RedirectToAction("Index");
         }
 
-        [HttpPost]
-        public async Task<IActionResult> UpdateLecturerDepartment(int userId, int? departmentId)
-        {
-            var user = _userRepository.Query().FirstOrDefault(u => u.Id == userId && u.Role == "Lecturer");
-            if (user == null)
-            {
-                TempData["Error"] = "Không tìm thấy giảng viên.";
-                return RedirectToAction("Index");
-            }
 
-            user.DepartmentId = departmentId;
-            _userRepository.Update(user);
-            await _userRepository.SaveChangesAsync();
-
-            var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-            await _auditLogService.LogAsync(adminId, "Update Lecturer Dept", $"User {userId}", $"Dept: {departmentId}");
-
-            TempData["Success"] = "Đã cập nhật bộ môn cho giảng viên.";
-            return RedirectToAction("Index");
-        }
 
         [HttpPost]
         public async Task<IActionResult> DeleteUser(int id)
         {
-            var user = await _userRepository.GetByIdAsync(id);
+            var user = await _context.AppUsers.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Id == id);
             if (user != null && user.Role != "Admin")
             {
-                _userRepository.Remove(user);
-                await _userRepository.SaveChangesAsync();
+                if (user.Role == "HeadOfDepartment" && user.DepartmentId.HasValue)
+                {
+                    var activeTerm = _context.HodTerms.FirstOrDefault(t => t.AppUserId == user.Id && t.EndAt == null);
+                    if (activeTerm != null) activeTerm.EndAt = DateTime.UtcNow;
+                    user.DepartmentId = null;
+                }
+                
+                user.IsDeleted = true;
+                user.IsActive = false;
+                _context.AppUsers.Update(user);
+                await _context.SaveChangesAsync();
 
                 var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
                 await _auditLogService.LogAsync(adminId, "Delete User", user.Id.ToString(), $"Email: {user.Email}");
@@ -203,39 +185,44 @@ namespace RagChatbot.Presentation.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> ToggleUserStatus(int id)
+        public async Task<IActionResult> EndHodTerm(int id)
         {
-            var user = await _userRepository.GetByIdAsync(id);
-            if (user != null && user.Role != "Admin")
+            var user = await _context.AppUsers.FirstOrDefaultAsync(u => u.Id == id);
+            if (user != null && user.Role == "HeadOfDepartment" && user.DepartmentId.HasValue)
             {
-                user.IsActive = !user.IsActive;
-                _userRepository.Update(user);
-
-                // Nếu khóa tài khoản, tắt (Inactive) toàn bộ tài liệu của Lecturer này (BR-06)
-                if (!user.IsActive)
-                {
-                    var userDocs = _documentRepository.Query().Where(d => d.UploaderId == id).ToList();
-                    foreach (var doc in userDocs)
-                    {
-                        doc.IsActive = false;
-                        _documentRepository.Update(doc);
-                    }
-                    await _documentRepository.SaveChangesAsync();
-                }
-
-                await _userRepository.SaveChangesAsync();
-
+                var activeTerm = _context.HodTerms.FirstOrDefault(t => t.AppUserId == user.Id && t.EndAt == null);
+                if (activeTerm != null) activeTerm.EndAt = DateTime.UtcNow;
+                
+                user.DepartmentId = null;
+                _context.AppUsers.Update(user);
+                await _context.SaveChangesAsync();
+                
                 var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-                await _auditLogService.LogAsync(adminId, "Toggle User Status", user.Id.ToString(), $"IsActive: {user.IsActive}");
-
-                TempData["Success"] = $"{(user.IsActive ? "Mở khóa" : "Khóa")} tài khoản thành công.";
+                await _auditLogService.LogAsync(adminId, "End HOD Term", user.Id.ToString(), $"User: {user.Email}");
+                
+                TempData["Success"] = "Đã kết thúc nhiệm kỳ Trưởng bộ môn.";
             }
             else
             {
-                TempData["Error"] = "Không tìm thấy tài khoản hoặc không được phép thao tác.";
+                TempData["Error"] = "Không tìm thấy Trưởng bộ môn hoặc không trong nhiệm kỳ.";
             }
+            return RedirectToAction("HeadOfDepartments");
+        }
 
-            return RedirectToAction("Index");
+        [HttpGet]
+        public async Task<IActionResult> GetHodTermHistory(int userId)
+        {
+            var terms = await _context.HodTerms
+                .Include(t => t.Department)
+                .Where(t => t.AppUserId == userId)
+                .OrderByDescending(t => t.StartAt)
+                .Select(t => new {
+                    departmentName = t.Department.Name,
+                    startAt = t.StartAt.ToString("dd/MM/yyyy"),
+                    endAt = t.EndAt.HasValue ? t.EndAt.Value.ToString("dd/MM/yyyy") : null
+                })
+                .ToListAsync();
+            return Json(terms);
         }
 
         // --- DEPARTMENT MANAGEMENT ---
@@ -346,6 +333,73 @@ namespace RagChatbot.Presentation.Controllers
         }
 
         [HttpPost]
+        public async Task<IActionResult> CreateSubjectsBulk(Microsoft.AspNetCore.Http.IFormFile file, int departmentId)
+        {
+            if (file == null || file.Length == 0)
+            {
+                TempData["Error"] = "Vui lòng chọn file chứa dữ liệu môn học.";
+                return RedirectToAction("Subjects");
+            }
+            if (departmentId <= 0)
+            {
+                TempData["Error"] = "Vui lòng chọn bộ môn hợp lệ.";
+                return RedirectToAction("Subjects");
+            }
+
+            using var reader = new System.IO.StreamReader(file.OpenReadStream());
+            var content = await reader.ReadToEndAsync();
+            var lines = content.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            int successCount = 0;
+            int failCount = 0;
+            var adminId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+
+            foreach (var line in lines)
+            {
+                var parts = line.Split(',', 2, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length < 2)
+                {
+                    failCount++;
+                    continue;
+                }
+
+                var code = parts[0].Trim();
+                var name = parts[1].Trim();
+
+                var exists = await _context.Subjects.AnyAsync(s => s.Code == code);
+                if (exists)
+                {
+                    failCount++;
+                    continue;
+                }
+
+                var subject = new Subject
+                {
+                    Code = code,
+                    Name = name,
+                    DepartmentId = departmentId,
+                    UserId = adminId
+                };
+                
+                _context.Subjects.Add(subject);
+                successCount++;
+            }
+
+            await _context.SaveChangesAsync();
+            await _auditLogService.LogAsync(adminId, "Bulk Create Subjects", "", $"Created {successCount} subjects");
+
+            if (failCount > 0)
+            {
+                TempData["Error"] = $"Tạo thành công {successCount} môn học. Bỏ qua {failCount} dòng do sai định dạng hoặc trùng CODE.";
+            }
+            else
+            {
+                TempData["Success"] = $"Đã tạo thành công {successCount} môn học.";
+            }
+
+            return RedirectToAction("Subjects");
+        }
+
+        [HttpPost]
         public async Task<IActionResult> CreateSingleUser(string email, string firstName, string lastName, string password, string role, int? departmentId)
         {
             if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(firstName) || string.IsNullOrWhiteSpace(lastName) || string.IsNullOrWhiteSpace(password))
@@ -367,14 +421,26 @@ namespace RagChatbot.Presentation.Controllers
                 FirstName = firstName,
                 LastName = lastName,
                 PasswordHash = HashPassword(password),
-                Role = role ?? "Lecturer",
+                Role = role ?? "Student",
                 DepartmentId = departmentId
             };
 
             await _userRepository.AddAsync(user);
+            await _userRepository.SaveChangesAsync();
 
             var adminId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
             await _auditLogService.LogAsync(adminId, "Create Single User", user.Id.ToString(), $"Email: {email}, Role: {user.Role}");
+
+            var emailService = HttpContext.RequestServices.GetService(typeof(RagChatbot.Business.Interfaces.IEmailService)) as RagChatbot.Business.Interfaces.IEmailService;
+            if (emailService != null)
+            {
+                var htmlBody = GetWelcomeEmailHtml(firstName, lastName, email, password);
+                await emailService.SendEmailAsync(
+                    email,
+                    "Thông tin tài khoản RAG Chatbot",
+                    htmlBody
+                );
+            }
 
             TempData["Success"] = "Tạo người dùng thành công.";
             return RedirectToAction("Index");
@@ -403,9 +469,7 @@ namespace RagChatbot.Presentation.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateHod(string email, string firstName, string lastName, int departmentId)
         {
-            // Kiểm tra bộ môn đã có HOD chưa
-            var existingHod = _userRepository.Query()
-                .FirstOrDefault(u => u.Role == "HeadOfDepartment" && u.DepartmentId == departmentId);
+            var existingHod = _context.AppUsers.FirstOrDefault(u => u.Role == "HeadOfDepartment" && u.DepartmentId == departmentId);
 
             if (existingHod != null)
             {
@@ -417,12 +481,19 @@ namespace RagChatbot.Presentation.Controllers
             var success = await _authService.RegisterAsync(email, password, "HeadOfDepartment", firstName, lastName);
             if (success)
             {
-                var user = _userRepository.Query().FirstOrDefault(u => u.Email == email);
+                var user = _context.AppUsers.FirstOrDefault(u => u.Email == email);
                 if (user != null)
                 {
                     user.DepartmentId = departmentId;
-                    _userRepository.Update(user);
-                    await _userRepository.SaveChangesAsync();
+                    _context.AppUsers.Update(user);
+                    
+                    _context.HodTerms.Add(new HodTerm {
+                        AppUserId = user.Id,
+                        DepartmentId = departmentId,
+                        StartAt = DateTime.UtcNow
+                    });
+                    
+                    await _context.SaveChangesAsync();
 
                     var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
                     await _auditLogService.LogAsync(adminId, "Create HOD", user.Id.ToString(), $"Email: {email}, Dept: {departmentId}");
@@ -439,17 +510,16 @@ namespace RagChatbot.Presentation.Controllers
         [HttpPost]
         public async Task<IActionResult> UpdateHodDepartment(int id, int? departmentId)
         {
-            var user = await _userRepository.GetByIdAsync(id);
+            var user = await _context.AppUsers.FirstOrDefaultAsync(u => u.Id == id);
             if (user == null || user.Role != "HeadOfDepartment")
             {
                 TempData["Error"] = "Không tìm thấy Trưởng bộ môn.";
                 return RedirectToAction("HeadOfDepartments");
             }
 
-            if (departmentId.HasValue)
+            if (departmentId.HasValue && user.DepartmentId != departmentId)
             {
-                var existingHod = _userRepository.Query()
-                    .FirstOrDefault(u => u.Role == "HeadOfDepartment" && u.DepartmentId == departmentId.Value && u.Id != id);
+                var existingHod = _context.AppUsers.FirstOrDefault(u => u.Role == "HeadOfDepartment" && u.DepartmentId == departmentId.Value && u.Id != id);
 
                 if (existingHod != null)
                 {
@@ -458,9 +528,24 @@ namespace RagChatbot.Presentation.Controllers
                 }
             }
 
+            if (user.DepartmentId != departmentId)
+            {
+                var activeTerm = _context.HodTerms.FirstOrDefault(t => t.AppUserId == user.Id && t.EndAt == null);
+                if (activeTerm != null) activeTerm.EndAt = DateTime.UtcNow;
+
+                if (departmentId.HasValue)
+                {
+                    _context.HodTerms.Add(new HodTerm {
+                        AppUserId = user.Id,
+                        DepartmentId = departmentId.Value,
+                        StartAt = DateTime.UtcNow
+                    });
+                }
+            }
+
             user.DepartmentId = departmentId;
-            _userRepository.Update(user);
-            await _userRepository.SaveChangesAsync();
+            _context.AppUsers.Update(user);
+            await _context.SaveChangesAsync();
 
             var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
             await _auditLogService.LogAsync(adminId, "Update HOD", user.Id.ToString(), $"DeptId: {departmentId}");
@@ -469,62 +554,7 @@ namespace RagChatbot.Presentation.Controllers
             return RedirectToAction("HeadOfDepartments");
         }
 
-        [HttpPost]
-        public async Task<IActionResult> PromoteToHod(int id)
-        {
-            var user = await _userRepository.GetByIdAsync(id);
-            if (user == null || user.Role != "Lecturer")
-            {
-                TempData["Error"] = "Không tìm thấy Giảng viên.";
-                return RedirectToAction("Index");
-            }
 
-            if (!user.DepartmentId.HasValue)
-            {
-                TempData["Error"] = "Giảng viên này chưa được phân công bộ môn. Vui lòng phân công bộ môn trước khi nâng cấp.";
-                return RedirectToAction("Index");
-            }
-
-            var existingHod = _userRepository.Query()
-                .FirstOrDefault(u => u.Role == "HeadOfDepartment" && u.DepartmentId == user.DepartmentId.Value);
-
-            if (existingHod != null)
-            {
-                TempData["Error"] = "Bộ môn của giảng viên này đã có Trưởng bộ môn. Mỗi bộ môn chỉ được phép có 1 Trưởng bộ môn.";
-                return RedirectToAction("Index");
-            }
-
-            user.Role = "HeadOfDepartment";
-            _userRepository.Update(user);
-            await _userRepository.SaveChangesAsync();
-
-            var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-            await _auditLogService.LogAsync(adminId, "Promote To HOD", user.Id.ToString(), $"DeptId: {user.DepartmentId}");
-
-            TempData["Success"] = $"Đã nâng cấp {user.LastName} {user.FirstName} lên làm Trưởng bộ môn.";
-            return RedirectToAction("Index");
-        }
-
-        [HttpPost]
-        public async Task<IActionResult> DemoteToLecturer(int id)
-        {
-            var user = await _userRepository.GetByIdAsync(id);
-            if (user == null || user.Role != "HeadOfDepartment")
-            {
-                TempData["Error"] = "Không tìm thấy Trưởng bộ môn.";
-                return RedirectToAction("HeadOfDepartments");
-            }
-
-            user.Role = "Lecturer";
-            _userRepository.Update(user);
-            await _userRepository.SaveChangesAsync();
-
-            var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-            await _auditLogService.LogAsync(adminId, "Demote To Lecturer", user.Id.ToString(), $"DeptId: {user.DepartmentId}");
-
-            TempData["Success"] = $"Đã giáng chức {user.LastName} {user.FirstName} xuống làm Giảng viên.";
-            return RedirectToAction("HeadOfDepartments");
-        }
 
         [HttpGet]
         public async Task<IActionResult> Contacts()
@@ -548,7 +578,7 @@ namespace RagChatbot.Presentation.Controllers
                                     .ToList();
 
             var uploaders = _userRepository.Query()
-                .Where(u => u.Role == "Lecturer" || u.Role == "HeadOfDepartment")
+                .Where(u => u.Role == "HeadOfDepartment")
                 .ToList();
 
             var departments = _context.Departments.ToList();
@@ -595,7 +625,7 @@ namespace RagChatbot.Presentation.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = "Admin,Lecturer,HeadOfDepartment,Student")]
+        [Authorize(Roles = "Admin,HeadOfDepartment,Student")]
         public IActionResult ViewDocument(int id)
         {
             // 1. Tìm thông tin tài liệu trong DB
@@ -675,6 +705,28 @@ namespace RagChatbot.Presentation.Controllers
             var bytes = Encoding.UTF8.GetBytes(password);
             var hash = sha256.ComputeHash(bytes);
             return Convert.ToBase64String(hash);
+        }
+        private string GetWelcomeEmailHtml(string firstName, string lastName, string email, string password)
+        {
+            return $@"
+                <div style=""font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);"">
+                    <div style=""text-align: center; padding-bottom: 25px; border-bottom: 2px solid #10b981;"">
+                        <h2 style=""color: #0f172a; margin: 0; font-size: 24px;"">RAG Chatbot System</h2>
+                        <p style=""color: #64748b; margin-top: 8px; font-size: 14px;"">Hệ thống Trợ lý ảo & Quản lý Tài liệu</p>
+                    </div>
+                    <div style=""padding: 25px 0; color: #334155; line-height: 1.6;"">
+                        <p style=""font-size: 16px; margin-bottom: 20px;"">Xin chào <strong>{lastName} {firstName}</strong>,</p>
+                        <p style=""font-size: 15px;"">Tài khoản của bạn đã được quản trị viên tạo thành công trên hệ thống. Dưới đây là thông tin đăng nhập dành cho bạn:</p>
+                        <div style=""background-color: #f8fafc; padding: 20px; border-radius: 10px; border: 1px solid #e2e8f0; margin: 25px 0;"">
+                            <p style=""margin: 0 0 10px 0; font-size: 15px;""><strong>Email:</strong> <span style=""color: #0f172a;"">{email}</span></p>
+                            <p style=""margin: 0; font-size: 15px;""><strong>Mật khẩu mặc định:</strong> <span style=""background-color: #e2e8f0; padding: 4px 8px; border-radius: 6px; font-family: monospace; color: #0f172a; font-weight: bold; letter-spacing: 1px;"">{password}</span></p>
+                        </div>
+                        <p style=""color: #dc2626; font-size: 14px; background-color: #fef2f2; padding: 12px; border-radius: 8px; border-left: 4px solid #dc2626;""><strong>Lưu ý quan trọng:</strong> Đây là mật khẩu mặc định. Để bảo đảm an toàn, vui lòng đăng nhập và tiến hành đổi mật khẩu ngay lập tức tại phần <strong>Hồ sơ cá nhân</strong>.</p>
+                    </div>
+                    <div style=""text-align: center; padding-top: 30px; border-top: 1px solid #e2e8f0;"">
+                        <a href=""https://localhost:5186/Auth/Login"" style=""display: inline-block; background-color: #10b981; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: 600; font-size: 15px; box-shadow: 0 2px 4px rgba(16, 185, 129, 0.3);"">Đăng nhập vào Hệ thống</a>
+                    </div>
+                </div>";
         }
     }
 }
