@@ -1,0 +1,62 @@
+@if (TempData["Success"] != null || TempData["Error"] != null)
+{
+    <div id="toast-container" class="fixed bottom-6 right-6 z-[9999] flex flex-col gap-3 pointer-events-none">
+        @if (TempData["Success"] != null)
+        {
+            <div class="toast-item pointer-events-auto flex items-start gap-3 p-4 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-500/20 shadow-xl rounded-xl min-w-[300px] animate-[slideInRight_0.3s_ease-out]">
+                <div class="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-500/20 flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-check text-emerald-600 dark:text-emerald-400"></i>
+                </div>
+                <div class="flex-1 pt-1.5">
+                    <h4 class="text-sm font-bold text-gray-900 dark:text-white">Thành công</h4>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">@TempData["Success"]</p>
+                </div>
+                <button onclick="this.closest('.toast-item').remove()" class="text-slate-400 hover:text-slate-600 transition-colors pt-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        }
+
+        @if (TempData["Error"] != null)
+        {
+            <div class="toast-item pointer-events-auto flex items-start gap-3 p-4 bg-white dark:bg-slate-800 border border-red-200 dark:border-red-500/20 shadow-xl rounded-xl min-w-[300px] animate-[slideInRight_0.3s_ease-out]">
+                <div class="w-8 h-8 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center shrink-0">
+                    <i class="fa-solid fa-exclamation text-red-600 dark:text-red-400"></i>
+                </div>
+                <div class="flex-1 pt-1.5">
+                    <h4 class="text-sm font-bold text-gray-900 dark:text-white">Lỗi</h4>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">@TempData["Error"]</p>
+                </div>
+                <button onclick="this.closest('.toast-item').remove()" class="text-slate-400 hover:text-slate-600 transition-colors pt-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        }
+    </div>
+
+    <style>
+        @@keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @@keyframes fadeOut {
+            from { opacity: 1; transform: scale(1); }
+            to { opacity: 0; transform: scale(0.9); }
+        }
+        .toast-hide {
+            animation: fadeOut 0.3s ease-out forwards;
+        }
+    </style>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const toasts = document.querySelectorAll('.toast-item');
+            toasts.forEach(toast => {
+                setTimeout(() => {
+                    toast.classList.add('toast-hide');
+                    setTimeout(() => toast.remove(), 300);
+                }, 4000);
+            });
+        });
+    </script>
+}

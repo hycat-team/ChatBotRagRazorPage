@@ -32,7 +32,7 @@ namespace RagChatbot.Business.Services
             var entities = await _subjectRepository.Query()
                 .Include(s => s.Documents)
                 .Include(s => s.Department)
-                .Where(s => s.UserId == userId)
+                .Where(s => s.Department != null && s.Department.Users.Any(u => u.Id == userId))
                 .ToListAsync();
             return entities.Select(s => s.ToDto()!).ToList();
         }

@@ -1,0 +1,94 @@
+@page
+@model RagChatbot.PresentationRazorPage.Pages.Hod.IndexModel
+@{
+    ViewData["Title"] = "Môn học của tôi";
+}
+
+<div class="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8 transition-colors duration-200">
+    <div class="flex items-center justify-between mb-8">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
+            <span class="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                <i class="fa-solid fa-book"></i>
+            </span>
+            Môn học bộ môn
+        </h1>
+    </div>
+
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
+        <div class="px-6 py-5 border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
+            <h3 class="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <i class="fa-solid fa-layer-group text-emerald-500 dark:text-emerald-400"></i>
+                Danh sách Môn học
+            </h3>
+            <span class="bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 text-xs font-bold px-2.5 py-1 rounded-full">
+                @Model.Subjects.Count() môn học
+            </span>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-600 dark:text-slate-300">
+                <thead class="bg-slate-50 dark:bg-slate-950/50 text-xs uppercase font-semibold text-slate-500 dark:text-slate-400 border-b border-slate-200 dark:border-slate-800">
+                    <tr>
+                        <th scope="col" class="px-6 py-4">Mã Môn</th>
+                        <th scope="col" class="px-6 py-4">Tên Môn học</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60" id="subject-list">
+                    @if (!Model.Subjects.Any())
+                    {
+                        <tr>
+                            <td colspan="2" class="px-6 py-12 text-center text-slate-500">Chưa có môn học nào thuộc quản lý của bạn.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        foreach (var subject in Model.Subjects)
+                        {
+                            <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group">
+                                <td class="px-6 py-4 font-mono text-xs font-bold text-slate-500 dark:text-slate-400">@subject.Code</td>
+                                <td class="px-6 py-4 font-bold text-gray-900 dark:text-slate-100">@subject.Name</td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+    <script>
+        const connection = new signalR.HubConnectionBuilder()
+            .withUrl("/appNotificationHub")
+            .withAutomaticReconnect()
+            .build();
+
+        connection.on("SubjectListChanged", async function () {
+            try {
+                const response = await fetch('?handler=SubjectsData');
+                if (response.ok) {
+                    const data = await response.json();
+                    const list = document.getElementById('subject-list');
+                    list.innerHTML = '';
+                    if (data.length === 0) {
+                        list.innerHTML = '<tr><td colspan="2" class="px-6 py-12 text-center text-slate-500">Chưa có môn học nào thuộc quản lý của bạn.</td></tr>';
+                        return;
+                    }
+                    data.forEach(s => {
+                        const tr = document.createElement('tr');
+                        tr.className = 'hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group';
+                        tr.innerHTML = `<td class="px-6 py-4 font-mono text-xs font-bold text-slate-500 dark:text-slate-400">${s.code}</td><td class="px-6 py-4 font-bold text-gray-900 dark:text-slate-100">${s.name}</td>`;
+                        list.appendChild(tr);
+                    });
+                }
+            } catch (err) {
+                console.error("Error fetching subject data:", err);
+            }
+        });
+
+        connection.start().catch(function (err) {
+            return console.error(err.toString());
+        });
+    </script>
+}

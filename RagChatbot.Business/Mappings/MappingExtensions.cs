@@ -17,7 +17,10 @@ namespace RagChatbot.Business.Mappings
                 Code = entity.Code,
                 Name = entity.Name,
                 CreatedAt = entity.CreatedAt,
-                UserId = entity.UserId,
+                IsActive = entity.IsActive,
+                ManagerName = entity.Department?.Users?.FirstOrDefault(u => u.Role == "HeadOfDepartment") != null 
+                    ? $"{entity.Department.Users.First(u => u.Role == "HeadOfDepartment").LastName} {entity.Department.Users.First(u => u.Role == "HeadOfDepartment").FirstName}".Trim() 
+                    : "Trống",
                 DepartmentId = entity.DepartmentId,
                 DepartmentName = entity.Department?.Name ?? string.Empty
             };
@@ -35,7 +38,7 @@ namespace RagChatbot.Business.Mappings
             {
                 Code = dto.Code,
                 Name = dto.Name,
-                UserId = dto.UserId,
+                IsActive = false,
                 DepartmentId = dto.DepartmentId,
                 CreatedAt = DateTime.UtcNow
             };

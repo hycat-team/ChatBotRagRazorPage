@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 
 namespace RagChatbot.DataAccess.EntityModels
 {
@@ -23,8 +23,6 @@ namespace RagChatbot.DataAccess.EntityModels
 
         // Navigation Properties
         public Department? Department { get; set; }
-        public ICollection<Subject> Subjects { get; set; } = new List<Subject>();
-        public ICollection<SubjectAssignment> SubjectAssignments { get; set; } = new List<SubjectAssignment>();
 
         public SubscriptionType Subscription { get; set; } = SubscriptionType.Free; // Mặc định là Free
         public int TodayChatCount { get; set; } = 0; // Đếm số câu hỏi trong ngày

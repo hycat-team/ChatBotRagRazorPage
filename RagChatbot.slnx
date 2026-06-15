@@ -1,5 +1,5 @@
 <Solution>
   <Project Path="RagChatbot.Business/RagChatbot.Business.csproj" />
   <Project Path="RagChatbot.DataAccess/RagChatbot.DataAccess.csproj" />
-  <Project Path="RagChatbot.Presentation/RagChatbot.Presentation.csproj" />
+  <Project Path="RagChatbot.PresentationRazorPage/RagChatbot.PresentationRazorPage.csproj" Id="038927d6-fa56-4a04-8027-d7826e7c5ff8" />
 </Solution>

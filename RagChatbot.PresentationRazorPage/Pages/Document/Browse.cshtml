@@ -1,0 +1,246 @@
+﻿@page
+@model RagChatbot.PresentationRazorPage.Pages.Document.BrowseModel
+@inject RagChatbot.DataAccess.Interfaces.IAppUserRepository UserRepository
+@{
+    ViewData["Title"] = "Thư viện học liệu";
+    var subjects = ViewBag.Subjects as List<RagChatbot.DataAccess.EntityModels.Subject>;
+    var selectedSubjectId = ViewBag.SelectedSubjectId as int?;
+    var searchString = ViewBag.SearchString as string;
+
+    // ─── KIỂM TRA QUYỀN ĐỌC SÁCH CỦA USER HIỆN TẠI ───
+    bool canReadEverything = false;
+    if (User.Identity?.IsAuthenticated == true)
+    {
+        // Nếu là Admin, Giảng viên, Trưởng bộ môn -> Mặc định được đọc
+        if (User.IsInRole("Admin") || User.IsInRole("Lecturer") || User.IsInRole("HeadOfDepartment"))
+        {
+            canReadEverything = true;
+        }
+        else if (User.IsInRole("Student"))
+        {
+            // Nếu là Học sinh -> Tìm trong DB xem gói hiện tại là gì
+            var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (int.TryParse(userIdStr, out int uId))
+            {
+                var currentUser = UserRepository.GetByIdAsync(uId).GetAwaiter().GetResult();
+                if (currentUser != null && currentUser.Subscription == RagChatbot.DataAccess.EntityModels.AppUser.SubscriptionType.Premium)
+                {
+                    canReadEverything = true; // Học sinh Premium được đọc
+                }
+            }
+        }
+    }
+}
+
+<div class="flex-1 overflow-y-auto p-6 space-y-6">
+
+    
+
+    
+
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+            <h2 class="text-xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <span class="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                    <i class="fa-solid fa-book-open text-sm"></i>
+                </span>
+                Thư viện tài liệu học tập
+            </h2>
+            <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Tìm kiếm và tra cứu nhanh các nguồn tài liệu học tập chính thống.</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-start sm:justify-end">
+            <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                Tổng số: @Model.Documents.Count() tài liệu sẵn sàng
+            </span>
+
+            @if (User.Identity?.IsAuthenticated == true && User.IsInRole("Student") && !canReadEverything)
+            {
+                <form method="post" action="/api/wallets/pay-premium" class="inline-block m-0">
+                    <button type="submit" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white shadow-sm shadow-amber-500/20 transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer">
+                        <i class="fa-solid fa-crown text-[10px]"></i> Nâng cấp Premium qua VNPAY
+                    </button>
+                </form>
+            }
+        </div>
+    </div>
+
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm transition-colors duration-200">
+        <form method="get" action="/Document/Browse" class="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+
+            <div class="md:col-span-4">
+                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Lọc theo môn học</label>
+                <select name="subjectId" onchange="this.form.submit()"
+                        class="w-full text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors">
+                    <option value="">-- Tất cả môn học --</option>
+                    @if (subjects != null)
+                    {
+                        foreach (var sub in subjects)
+                        {
+                            if (selectedSubjectId == sub.Id)
+                            {
+                                <option value="@sub.Id" selected="selected">@sub.Code - @sub.Name</option>
+                            }
+                            else
+                            {
+                                <option value="@sub.Id">@sub.Code - @sub.Name</option>
+                            }
+                        }
+                    }
+                </select>
+            </div>
+
+            <div class="md:col-span-6">
+                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1.5">Tìm kiếm tên tài liệu</label>
+                <div class="relative flex items-center">
+                    <input type="text" name="searchString" value="@searchString"
+                           placeholder="Nhập tên tài liệu hoặc từ khóa cần tìm..."
+                           class="w-full text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg pl-3 pr-20 py-2 text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-colors" />
+                    <button type="submit"
+                            class="absolute right-1 top-1 bottom-1 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium px-3 rounded-md flex items-center gap-1 shadow-sm transition-colors">
+                        <i class="fa-solid fa-magnifying-glass text-[10px]"></i> Tìm
+                    </button>
+                </div>
+            </div>
+
+            <div class="md:col-span-2">
+                <a href="/Document/Browse"
+                   class="w-full text-center text-xs font-medium border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 py-2.5 rounded-lg transition-colors flex items-center justify-center gap-1.5">
+                    <i class="fa-solid fa-rotate-left text-[10px]"></i> Xóa bộ lọc
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm overflow-hidden transition-colors duration-200">
+        @if (!Model.Documents.Any())
+        {
+            <div class="p-12 text-center">
+                <div class="w-12 h-12 rounded-full bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center mx-auto mb-3">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500 text-lg"></i>
+                </div>
+                <p class="text-sm font-medium text-slate-700 dark:text-slate-300">Không tìm thấy tài liệu nào phù hợp!</p>
+                <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">Hãy thử đổi từ khóa tìm kiếm hoặc chọn môn học khác nhé.</p>
+            </div>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full border-collapse text-left text-sm">
+                    <thead class="bg-slate-50 dark:bg-slate-800/50 text-slate-500 dark:text-slate-400 font-medium border-b border-slate-200 dark:border-slate-800">
+                        <tr>
+                            <th class="px-4 py-3 text-center w-12">#</th>
+                            <th class="px-4 py-3">Tên tài liệu / Tên File</th>
+                            <th class="px-4 py-3">Môn học</th>
+                            <th class="px-4 py-3 w-44">Ngày cập nhật</th>
+                            <th class="px-4 py-3 text-center w-28">Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-200 dark:divide-slate-800">
+                        @{
+                            int index = 1;
+                        }
+                        @foreach (var doc in Model.Documents)
+                        {
+                            <tr class="hover:bg-slate-50/80 dark:hover:bg-slate-800/30 transition-colors">
+                                <td class="px-4 py-3.5 text-center font-medium text-slate-400 dark:text-slate-500">@index</td>
+                                <td class="px-4 py-3.5">
+                                    <div class="font-semibold text-slate-900 dark:text-slate-100">
+                                        @(string.IsNullOrWhiteSpace(doc.DisplayName) ? doc.FileName : doc.DisplayName)
+                                    </div>
+                                    <div class="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1.5 mt-0.5">
+                                        <i class="fa-regular fa-file-lines text-[11px]"></i> @doc.FileName
+                                    </div>
+                                </td>
+                                <td class="px-4 py-3.5">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-xs font-medium text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
+                                        @doc.Subject?.Code - @doc.Subject?.Name
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3.5 text-xs text-slate-500 dark:text-slate-400">
+                                    @doc.UploadedAt.ToString("dd/MM/yyyy HH:mm")
+                                </td>
+                                <td class="px-4 py-3.5 text-center">
+                                    @if (canReadEverything)
+                                    {
+                                        <a href="/Document?handler=ViewDocument&id=@doc.Id" target="_blank"
+                                           class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm shadow-emerald-500/10 transition-colors">
+                                            <i class="fa-solid fa-eye text-[10px]"></i> Đọc sách
+                                        </a>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" onclick="openPremiumModal()"
+                                                class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-lg bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-amber-500 hover:text-white dark:hover:bg-amber-500 dark:hover:text-white border border-slate-300 dark:border-slate-700 shadow-sm transition-all duration-200 cursor-pointer">
+                                            <i class="fa-solid fa-lock text-[10px]"></i> Mở khóa
+                                        </button>
+                                    }
+                                </td>
+                            </tr>
+                            index++;
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<div id="premiumAlertModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/60 backdrop-blur-sm transition-all duration-300">
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl text-center space-y-4 transform scale-95 transition-transform duration-300">
+
+        <div class="w-16 h-16 rounded-full bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center mx-auto text-amber-500">
+            <i class="fa-solid fa-crown text-3xl animate-bounce"></i>
+        </div>
+
+        <h3 class="text-lg font-bold text-slate-900 dark:text-slate-100">Tính năng dành cho gói Premium</h3>
+        <p class="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            Tài liệu này thuộc kho tài nguyên nâng cao. Vui lòng kích hoạt tài khoản gói <span class="text-amber-500 font-bold">Premium</span> để đọc trực tuyến và sử dụng AI phân tích không giới hạn! 👑
+        </p>
+
+        <div class="flex flex-col gap-2 pt-2">
+            <form method="post" action="/api/wallets/pay-premium" class="w-full m-0">
+                <button type="submit" class="w-full py-2.5 px-4 text-xs font-bold bg-amber-500 hover:bg-amber-600 text-white rounded-xl shadow-md shadow-amber-500/20 transition-all cursor-pointer">
+                    👑 Thanh toán nâng cấp qua VNPAY
+                </button>
+            </form>
+            <button type="button" onclick="closePremiumModal()"
+                    class="w-full py-2 px-4 text-xs font-semibold text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all cursor-pointer">
+                Để sau
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openPremiumModal() {
+        const modal = document.getElementById('premiumAlertModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        // Thêm hiệu ứng phóng to nhẹ cho ruột modal
+        setTimeout(() => {
+            modal.querySelector('.transform').classList.remove('scale-95');
+            modal.querySelector('.transform').classList.add('scale-100');
+        }, 10);
+    }
+
+    function closePremiumModal() {
+        const modal = document.getElementById('premiumAlertModal');
+        modal.querySelector('.transform').classList.remove('scale-100');
+        modal.querySelector('.transform').classList.add('scale-95');
+        setTimeout(() => {
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+        }, 150);
+    }
+
+    // Đóng popup khi click ra ngoài vùng xám của modal
+    document.getElementById('premiumAlertModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closePremiumModal();
+        }
+    });
+</script>
+
+
+
