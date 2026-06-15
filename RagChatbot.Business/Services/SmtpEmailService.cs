@@ -17,11 +17,11 @@ namespace RagChatbot.Business.Services
 
         public async Task SendEmailAsync(string toEmail, string subject, string body)
         {
-            var host = _config["EmailConfiguration:Host"] ?? Environment.GetEnvironmentVariable("EmailConfiguration__Host") ?? _config["Smtp:Host"];
-            var portString = _config["EmailConfiguration:Port"] ?? Environment.GetEnvironmentVariable("EmailConfiguration__Port") ?? _config["Smtp:Port"];
-            var user = _config["EmailConfiguration:Username"] ?? Environment.GetEnvironmentVariable("EmailConfiguration__Username") ?? _config["Smtp:Username"];
-            var pass = _config["EmailConfiguration:Password"] ?? Environment.GetEnvironmentVariable("EmailConfiguration__Password") ?? _config["Smtp:Password"];
-            var from = _config["EmailConfiguration:From"] ?? Environment.GetEnvironmentVariable("EmailConfiguration__From") ?? _config["Smtp:From"] ?? user;
+            var host = Environment.GetEnvironmentVariable("EmailConfiguration__Host");
+            var portString = Environment.GetEnvironmentVariable("EmailConfiguration__Port");
+            var user = Environment.GetEnvironmentVariable("EmailConfiguration__Username");
+            var pass = Environment.GetEnvironmentVariable("EmailConfiguration__Password");
+            var from = Environment.GetEnvironmentVariable("EmailConfiguration__From") ?? user;
 
             if (string.IsNullOrEmpty(host) || string.IsNullOrEmpty(portString) || string.IsNullOrEmpty(user) || string.IsNullOrEmpty(pass))
             {

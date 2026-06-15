@@ -184,7 +184,7 @@ scratch/
 *.7z
 
 # Local uploaded documents
-RagChatbot.Web/wwwroot/uploads/
+RagChatbot.PresentationRazorPage/wwwroot/uploads/
 
 # ============================================================
 # Agent Skills
