@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using RagChatbot.DataAccess.Data;
-using RagChatbot.DataAccess.EntityModels;
 using System.Security.Claims;
 
 namespace RagChatbot.PresentationRazorPage.Pages.Contact
@@ -19,7 +17,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Contact
         }
 
         // 👈 ĐÃ ĐỔI: Thành OnPostAsync để hứng trọn đường dẫn /Contact/SendContact mà không cần truyền handler lên URL
-        public async Task<IActionResult> OnPostAsync(string content, ContactType type, int? relatedId)
+        public async Task<IActionResult> OnPostAsync(string content, string type, int? relatedId)
         {
             if (string.IsNullOrWhiteSpace(content))
             {
@@ -38,7 +36,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Contact
                 {
                     UserId = userId,
                     Content = content.Trim(),
-                    Type = type.ToString(),
+                    Type = type,
                     RelatedId = relatedId
                 };
 

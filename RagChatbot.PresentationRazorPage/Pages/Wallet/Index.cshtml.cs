@@ -1,7 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using RagChatbot.DataAccess.EntityModels;
-using RagChatbot.DataAccess.Interfaces;
 using RagChatbot.PresentationRazorPage.Helpers;
 using System.Security.Claims;
 

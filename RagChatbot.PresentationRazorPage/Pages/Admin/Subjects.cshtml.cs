@@ -5,7 +5,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.SignalR;
 using RagChatbot.PresentationRazorPage.Hubs;
 using RagChatbot.Business.Interfaces;
-using RagChatbot.DataAccess.EntityModels;
 using System;
 using System.Linq;
 using System.Security.Claims;

@@ -3,8 +3,6 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using RagChatbot.Business.Interfaces;
-using RagChatbot.DataAccess.EntityModels;
-using RagChatbot.DataAccess.Interfaces;
 using System;
 using System.Linq;
 using System.Security.Claims;

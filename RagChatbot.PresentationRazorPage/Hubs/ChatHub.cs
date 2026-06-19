@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using RagChatbot.Business.Interfaces;
-using RagChatbot.DataAccess.EntityModels;
-using RagChatbot.DataAccess.Interfaces;
 using System.Text.Json;
 using System.Collections.Concurrent;
 
@@ -16,7 +14,7 @@ namespace RagChatbot.PresentationRazorPage.Hubs
         private readonly IVectorSearchService _vectorSearchService;
         private readonly IAiService _aiService;
         private readonly IDocumentService _documentService;
-        private readonly IAppUserRepository _userRepository;
+        private readonly IAppUserService _userService;
         private readonly ILogger<ChatHub> _logger;
         private static readonly ConcurrentDictionary<string, CancellationTokenSource> _activeGenerations = new();
 
@@ -26,7 +24,7 @@ namespace RagChatbot.PresentationRazorPage.Hubs
             IVectorSearchService vectorSearchService,
             IAiService aiService,
             IDocumentService documentService,
-            IAppUserRepository userRepository,
+            IAppUserService userService,
             ILogger<ChatHub> logger)
         {
             _chatService = chatService;
@@ -34,7 +32,7 @@ namespace RagChatbot.PresentationRazorPage.Hubs
             _vectorSearchService = vectorSearchService;
             _aiService = aiService;
             _documentService = documentService;
-            _userRepository = userRepository;
+            _userService = userService;
             _logger = logger;
         }
 
@@ -61,7 +59,7 @@ namespace RagChatbot.PresentationRazorPage.Hubs
             try
             {
                 var userId = GetCurrentUserId();
-                var user = await _userRepository.GetByIdAsync(userId);
+                var user = await _userService.GetByIdAsync(userId);
                 if (user == null || !user.IsActive)
                 {
                     await Clients.Caller.SendAsync("ReceiveError", "Tài khoản của bạn đã bị vô hiệu hóa. Phiên làm việc đã kết thúc.");
@@ -115,7 +113,7 @@ namespace RagChatbot.PresentationRazorPage.Hubs
                 }
 
                 // ==================== ĐOẠN UPDATE CHẶN CHAT THEO GÓI DỊCH VỤ ====================
-                var user = await _userRepository.GetByIdAsync(userId);
+                var user = await _userService.GetByIdAsync(userId);
                 if (user != null)
                 {
                     // Chặn ngay lập tức nếu tài khoản bị khóa (ban) trong lúc đang kết nối
@@ -146,7 +144,7 @@ namespace RagChatbot.PresentationRazorPage.Hubs
                     if (user.Role == "Student")
                     {
                         // Nếu là học sinh gói FREE -> Chặn cứng khi đạt mốc 20 câu/ngày
-                        if (user.Subscription == AppUser.SubscriptionType.Free)
+                        if (user.Subscription == "Free")
                         {
                             if (user.TodayChatCount >= 20)
                             {
@@ -159,7 +157,7 @@ namespace RagChatbot.PresentationRazorPage.Hubs
 
                     // 4. Giữ bộ khóa 50 câu/ngày cũ cho các tài khoản thông thường khác (Giảng viên, tài khoản lỗi...)
                     // Đặc cách: Admin và Học sinh gói PREMIUM sẽ hoàn toàn MIỄN NHIỄM với bộ chặn 50 câu này (Tha hồ chat tẹt ga)
-                    bool isExemptFrom50Limit = user.Role == "Admin" || (user.Role == "Student" && user.Subscription == AppUser.SubscriptionType.Premium);
+                    bool isExemptFrom50Limit = user.Role == "Admin" || (user.Role == "Student" && user.Subscription == "Premium");
                     if (!isExemptFrom50Limit)
                     {
                         if (user.DailyQueryCount >= 50)
@@ -170,8 +168,7 @@ namespace RagChatbot.PresentationRazorPage.Hubs
                     }
 
                     user.DailyQueryCount++;
-                    _userRepository.Update(user);
-                    await _userRepository.SaveChangesAsync();
+                    await _userService.UpdateUserAsync(user);
                 }
                 // ===============================================================================
 

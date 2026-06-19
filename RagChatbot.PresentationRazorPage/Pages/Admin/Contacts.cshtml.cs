@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
-using RagChatbot.DataAccess.EntityModels;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;

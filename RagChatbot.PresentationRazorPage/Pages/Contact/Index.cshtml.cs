@@ -1,8 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using RagChatbot.DataAccess.Data;
-using RagChatbot.DataAccess.EntityModels;
 using System;
 using System.Security.Claims;
 using System.Threading.Tasks;
@@ -19,7 +17,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Contact
             _contactService = contactService;
         }
 
-        public async Task<IActionResult> OnPostSendContactAsync(string content, ContactType type, int? relatedId)
+        public async Task<IActionResult> OnPostSendContactAsync(string content, string type, int? relatedId)
         {
             if (string.IsNullOrWhiteSpace(content))
             {
@@ -38,7 +36,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Contact
                 {
                     UserId = userId,
                     Content = content.Trim(),
-                    Type = type.ToString(),
+                    Type = type,
                     RelatedId = relatedId
                 };
 

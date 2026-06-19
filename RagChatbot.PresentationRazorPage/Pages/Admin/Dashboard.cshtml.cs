@@ -5,8 +5,6 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 using RagChatbot.Business.Interfaces;
-using RagChatbot.DataAccess.EntityModels;
-using RagChatbot.DataAccess.Interfaces;
 using System;
 using System.IO;
 using System.Linq;

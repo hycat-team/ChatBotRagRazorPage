@@ -7,8 +7,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.SignalR;
 using RagChatbot.Business.Interfaces;
 using RagChatbot.Business.Mappings;
-using RagChatbot.DataAccess.EntityModels;
-using RagChatbot.DataAccess.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.IO;
