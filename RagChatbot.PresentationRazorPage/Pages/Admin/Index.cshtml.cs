@@ -17,38 +17,31 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
     [Authorize(Roles = "Admin")]
     public class IndexModel : PageModel
     {
-        private readonly IAppUserRepository _userRepository;
+        private readonly IAppUserService _userService;
+        private readonly IDepartmentService _departmentService;
         private readonly IAuthService _authService;
         private readonly IAuditLogService _auditLogService;
-        private readonly RagChatbot.DataAccess.Data.ApplicationDbContext _context;
 
         public IndexModel(
-            IAppUserRepository userRepository,
+            IAppUserService userService,
+            IDepartmentService departmentService,
             IAuthService authService,
-            IAuditLogService auditLogService,
-            RagChatbot.DataAccess.Data.ApplicationDbContext context)
+            IAuditLogService auditLogService)
         {
-            _userRepository = userRepository;
+            _userService = userService;
+            _departmentService = departmentService;
             _authService = authService;
             _auditLogService = auditLogService;
-            _context = context;
         }
 
-        public System.Collections.Generic.List<AppUser> Users { get; set; }
-        public System.Collections.Generic.List<AppUser> BannedUsers { get; set; }
+        public System.Collections.Generic.IEnumerable<RagChatbot.Business.DTOs.AppUserDto> Users { get; set; }
+        public System.Collections.Generic.IEnumerable<RagChatbot.Business.DTOs.AppUserDto> BannedUsers { get; set; }
 
         public async Task<IActionResult> OnGetAsync(string searchEmail = "")
         {
-            var activeQuery = _userRepository.Query().Where(u => u.Role == "Student" && u.IsActive);
-            var bannedQuery = _userRepository.Query().Where(u => u.Role == "Student" && !u.IsActive);
-            if (!string.IsNullOrWhiteSpace(searchEmail))
-            {
-                activeQuery = activeQuery.Where(u => u.Email.Contains(searchEmail));
-                bannedQuery = bannedQuery.Where(u => u.Email.Contains(searchEmail));
-            }
-            Users = activeQuery.ToList();
-            BannedUsers = bannedQuery.ToList();
-            ViewData["Departments"] = _context.Departments.ToList();
+            Users = await _userService.GetUsersAsync("Student", true, searchEmail);
+            BannedUsers = await _userService.GetUsersAsync("Student", false, searchEmail);
+            ViewData["Departments"] = await _departmentService.GetAllDepartmentsAsync();
             return Page();
         }
 
@@ -119,82 +112,67 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
 
         public async Task<IActionResult> OnPostDeleteUserAsync(int id)
         {
-            var user = await _context.AppUsers.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Id == id);
-            if (user != null && user.Role != "Admin")
+            var userDto = await _userService.GetByIdAsync(id);
+            if (userDto != null && userDto.Role != "Admin")
             {
-                if (user.Role == "HeadOfDepartment" && user.DepartmentId.HasValue)
-                {
-                    var activeTerm = _context.HodTerms.FirstOrDefault(t => t.AppUserId == user.Id && t.EndAt == null);
-                    if (activeTerm != null) activeTerm.EndAt = DateTime.UtcNow;
-                    user.DepartmentId = null;
-                }
-
-                user.IsActive = false;
-                _context.AppUsers.Update(user);
-                await _context.SaveChangesAsync();
+                await _userService.SoftDeleteUserAsync(id);
 
                 var adminId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
-                await _auditLogService.LogAsync(adminId, "Soft Delete User", user.Id.ToString(), $"Email: {user.Email}");
+                await _auditLogService.LogAsync(adminId, "Soft Delete User", id.ToString(), $"Email: {userDto.Email}");
 
                 var emailQueue = HttpContext.RequestServices.GetService(typeof(RagChatbot.Business.Interfaces.IEmailQueue)) as RagChatbot.Business.Interfaces.IEmailQueue;
                 if (emailQueue != null)
                 {
-                    var htmlBody = GetAccountLockedEmailHtml(user.FirstName, user.LastName, user.Email);
+                    var htmlBody = GetAccountLockedEmailHtml(userDto.FirstName, userDto.LastName, userDto.Email);
                     await emailQueue.QueueEmailAsync(new RagChatbot.Business.Interfaces.EmailMessage(
-                        user.Email,
+                        userDto.Email,
                         "Tài khoản của bạn đã bị vô hiệu hóa",
                         htmlBody
                     ));
                 }
 
-                TempData["Success"] = $"Đã xóa (ban) tài khoản {user.Email}.";
+                TempData["Success"] = $"Đã xóa (ban) tài khoản {userDto.Email}.";
             }
             return RedirectToPage();
         }
 
         public async Task<IActionResult> OnPostRestoreUserAsync(int id)
         {
-            var user = await _context.AppUsers.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Id == id);
-            if (user != null)
+            var userDto = await _userService.GetByIdAsync(id);
+            if (userDto != null)
             {
-                user.IsActive = true;
-                _context.AppUsers.Update(user);
-                await _context.SaveChangesAsync();
+                await _userService.RestoreUserAsync(id);
 
                 var adminId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
-                await _auditLogService.LogAsync(adminId, "Restore User", user.Id.ToString(), $"Email: {user.Email}");
+                await _auditLogService.LogAsync(adminId, "Restore User", id.ToString(), $"Email: {userDto.Email}");
 
                 var emailQueue = HttpContext.RequestServices.GetService(typeof(RagChatbot.Business.Interfaces.IEmailQueue)) as RagChatbot.Business.Interfaces.IEmailQueue;
                 if (emailQueue != null)
                 {
-                    var htmlBody = GetAccountRestoredEmailHtml(user.FirstName, user.LastName, user.Email);
+                    var htmlBody = GetAccountRestoredEmailHtml(userDto.FirstName, userDto.LastName, userDto.Email);
                     await emailQueue.QueueEmailAsync(new RagChatbot.Business.Interfaces.EmailMessage(
-                        user.Email,
+                        userDto.Email,
                         "Tài khoản của bạn đã được khôi phục",
                         htmlBody
                     ));
                 }
 
-                TempData["Success"] = $"Đã khôi phục tài khoản {user.Email}.";
+                TempData["Success"] = $"Đã khôi phục tài khoản {userDto.Email}.";
             }
             return RedirectToPage();
         }
 
         public async Task<IActionResult> OnPostResetPasswordAsync(int id)
         {
-            var user = await _userRepository.GetByIdAsync(id);
-            if (user != null && user.Role != "Admin")
+            var userDto = await _userService.GetByIdAsync(id);
+            if (userDto != null && userDto.Role != "Admin")
             {
-                using var sha256 = System.Security.Cryptography.SHA256.Create();
-                var bytes = System.Text.Encoding.UTF8.GetBytes("123456");
-                user.PasswordHash = System.Convert.ToBase64String(sha256.ComputeHash(bytes));
-                _userRepository.Update(user);
-                await _userRepository.SaveChangesAsync();
+                await _userService.ResetPasswordAsync(id, "123456");
 
                 var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-                await _auditLogService.LogAsync(adminId, "Reset Password", user.Id.ToString(), $"Email: {user.Email}");
+                await _auditLogService.LogAsync(adminId, "Reset Password", id.ToString(), $"Email: {userDto.Email}");
 
-                TempData["Success"] = $"Đặt lại mật khẩu thành công cho tài khoản {user.Email} (Mật khẩu mới: 123456).";
+                TempData["Success"] = $"Đặt lại mật khẩu thành công cho tài khoản {userDto.Email} (Mật khẩu mới: 123456).";
             }
             else
             {
@@ -211,28 +189,29 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
                 return RedirectToPage();
             }
 
-            var existingUser = await _userRepository.GetByEmailAsync(email);
+            var existingUser = await _userService.GetByEmailAsync(email);
             if (existingUser != null)
             {
                 TempData["Error"] = "Email đã tồn tại.";
                 return RedirectToPage();
             }
 
-            var user = new AppUser
+            var userDto = new RagChatbot.Business.DTOs.AppUserDto
             {
                 Email = email,
                 FirstName = firstName,
                 LastName = lastName,
-                PasswordHash = HashPassword(password),
                 Role = role ?? "Student",
-                DepartmentId = departmentId
+                DepartmentId = departmentId,
+                IsActive = true
             };
 
-            await _userRepository.AddAsync(user);
-            await _userRepository.SaveChangesAsync();
+            await _userService.AddUserAsync(userDto, password);
+
+            var createdUser = await _userService.GetByEmailAsync(email);
 
             var adminId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
-            await _auditLogService.LogAsync(adminId, "Create Single User", user.Id.ToString(), $"Email: {email}, Role: {user.Role}");
+            await _auditLogService.LogAsync(adminId, "Create Single User", createdUser?.Id.ToString() ?? "0", $"Email: {email}, Role: {userDto.Role}");
 
             var emailQueue = HttpContext.RequestServices.GetService(typeof(RagChatbot.Business.Interfaces.IEmailQueue)) as RagChatbot.Business.Interfaces.IEmailQueue;
             if (emailQueue != null)
@@ -247,14 +226,6 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
 
             TempData["Success"] = "Tạo người dùng thành công.";
             return RedirectToPage();
-        }
-
-        private string HashPassword(string password)
-        {
-            using var sha256 = SHA256.Create();
-            var bytes = Encoding.UTF8.GetBytes(password);
-            var hash = sha256.ComputeHash(bytes);
-            return Convert.ToBase64String(hash);
         }
         
         private string GetWelcomeEmailHtml(string firstName, string lastName, string email, string password)

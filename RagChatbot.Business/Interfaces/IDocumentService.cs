@@ -16,5 +16,11 @@ namespace RagChatbot.Business.Interfaces
         Task<int> GetTotalChunksAsync();
         Task<int> GetChunksByDocumentIdAsync(int documentId);
         Task<IEnumerable<DocumentChunkDto>> GetAllChunksAsync();
+        Task<IEnumerable<DocumentChunkDto>> GetChunksForDocumentAsync(int documentId);
+        
+        Task<IEnumerable<DocumentDto>> GetRecentDocumentsAsync(int count);
+        Task<int> GetActiveCountAsync();
+        Task<int> GetProcessingCountAsync();
+        Task<string?> GetDocumentFilePathAsync(int id);
     }
 }

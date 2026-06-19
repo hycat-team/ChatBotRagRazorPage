@@ -1,9 +1,9 @@
-﻿@page
+@page
 @model RagChatbot.PresentationRazorPage.Pages.Document.BrowseModel
-@inject RagChatbot.DataAccess.Interfaces.IAppUserRepository UserRepository
+@inject RagChatbot.Business.Interfaces.IAppUserService UserService
 @{
     ViewData["Title"] = "Thư viện học liệu";
-    var subjects = ViewBag.Subjects as List<RagChatbot.DataAccess.EntityModels.Subject>;
+    var subjects = ViewBag.Subjects as List<RagChatbot.Business.DTOs.SubjectDto>;
     var selectedSubjectId = ViewBag.SelectedSubjectId as int?;
     var searchString = ViewBag.SearchString as string;
 
@@ -22,8 +22,8 @@
             var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             if (int.TryParse(userIdStr, out int uId))
             {
-                var currentUser = UserRepository.GetByIdAsync(uId).GetAwaiter().GetResult();
-                if (currentUser != null && currentUser.Subscription == RagChatbot.DataAccess.EntityModels.AppUser.SubscriptionType.Premium)
+                var currentUser = UserService.GetByIdAsync(uId).GetAwaiter().GetResult();
+                if (currentUser != null && currentUser.Subscription == "Premium")
                 {
                     canReadEverything = true; // Học sinh Premium được đọc
                 }

@@ -12,11 +12,11 @@ namespace RagChatbot.PresentationRazorPage.Pages.Contact
     [Authorize]
     public class IndexModel : PageModel
     {
-        private readonly ApplicationDbContext _context;
+        private readonly RagChatbot.Business.Interfaces.IContactService _contactService;
 
-        public IndexModel(ApplicationDbContext context)
+        public IndexModel(RagChatbot.Business.Interfaces.IContactService contactService)
         {
-            _context = context;
+            _contactService = contactService;
         }
 
         public async Task<IActionResult> OnPostSendContactAsync(string content, ContactType type, int? relatedId)
@@ -34,18 +34,15 @@ namespace RagChatbot.PresentationRazorPage.Pages.Contact
 
             try
             {
-                var newMessage = new ContactMessage
+                var newMessage = new RagChatbot.Business.DTOs.ContactMessageDto
                 {
                     UserId = userId,
                     Content = content.Trim(),
-                    Type = type,
-                    RelatedId = relatedId,
-                    Status = ContactStatus.Pending,
-                    CreatedAt = DateTime.UtcNow
+                    Type = type.ToString(),
+                    RelatedId = relatedId
                 };
 
-                _context.ContactMessages.Add(newMessage);
-                await _context.SaveChangesAsync();
+                await _contactService.AddContactMessageAsync(newMessage);
 
                 return new JsonResult(new { success = true, message = "Gửi yêu cầu thành công! Ban quản trị sẽ xử lý sớm nhất có thể." });
             }

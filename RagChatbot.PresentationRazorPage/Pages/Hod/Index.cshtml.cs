@@ -14,25 +14,25 @@ namespace RagChatbot.PresentationRazorPage.Pages.Hod
     [Authorize(Roles = "HeadOfDepartment")]
     public class IndexModel : PageModel
     {
-        private readonly IAppUserRepository _userRepository;
-        private readonly ApplicationDbContext _context;
+        private readonly IAppUserService _userService;
+        private readonly ISubjectService _subjectService;
         private readonly IAuditLogService _auditLogService;
 
-        public IndexModel(IAppUserRepository userRepository, ApplicationDbContext context, IAuditLogService auditLogService)
+        public IndexModel(IAppUserService userService, ISubjectService subjectService, IAuditLogService auditLogService)
         {
-            _userRepository = userRepository;
-            _context = context;
+            _userService = userService;
+            _subjectService = subjectService;
             _auditLogService = auditLogService;
         }
 
-        public System.Collections.Generic.List<Subject> Subjects { get; set; }
+        public System.Collections.Generic.IEnumerable<RagChatbot.Business.DTOs.SubjectDto> Subjects { get; set; }
 
-        private async Task<AppUser> GetCurrentUser()
+        private async Task<RagChatbot.Business.DTOs.AppUserDto> GetCurrentUser()
         {
             var userIdStr = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             if (int.TryParse(userIdStr, out int userId))
             {
-                return await _userRepository.GetByIdAsync(userId);
+                return await _userService.GetByIdAsync(userId);
             }
             return null;
         }
@@ -42,9 +42,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Hod
             var user = await GetCurrentUser();
             if (user == null) return Unauthorized();
 
-            Subjects = await _context.Subjects
-                .Where(s => s.DepartmentId == user.DepartmentId && s.IsActive)
-                .ToListAsync();
+            Subjects = await _subjectService.GetByDepartmentIdAsync(user.DepartmentId ?? 0);
 
             return Page();
         }
@@ -54,16 +52,14 @@ namespace RagChatbot.PresentationRazorPage.Pages.Hod
             var user = await GetCurrentUser();
             if (user == null) return Unauthorized();
 
-            var subjects = await _context.Subjects
-                .Where(s => s.DepartmentId == user.DepartmentId && s.IsActive)
-                .Select(s => new {
-                    s.Code,
-                    s.Name,
-                    s.IsActive
-                })
-                .ToListAsync();
+            var subjects = await _subjectService.GetByDepartmentIdAsync(user.DepartmentId ?? 0);
+            var subjectData = subjects.Select(s => new {
+                s.Code,
+                s.Name,
+                s.IsActive
+            });
 
-            return new JsonResult(subjects);
+            return new JsonResult(subjectData);
         }
     }
 }

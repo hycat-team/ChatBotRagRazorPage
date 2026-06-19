@@ -6,7 +6,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RagChatbot.Business.Interfaces;
 
-namespace RagChatbot.Business.Services
+namespace RagChatbot.PresentationRazorPage.BackgroundJobs
 {
     public class EmailBackgroundService : BackgroundService
     {

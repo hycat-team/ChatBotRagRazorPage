@@ -18,46 +18,42 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
     [Authorize(Roles = "Admin")]
     public class DashboardModel : PageModel
     {
-        private readonly IAppUserRepository _userRepository;
-        private readonly IDocumentRepository _documentRepository;
+        private readonly IAppUserService _userService;
+        private readonly IDocumentService _documentService;
+        private readonly IDepartmentService _departmentService;
+        private readonly IContactService _contactService;
         private readonly IAuditLogService _auditLogService;
-        private readonly RagChatbot.DataAccess.Data.ApplicationDbContext _context;
         private readonly IWebHostEnvironment _env;
 
         public DashboardModel(
-            IAppUserRepository userRepository,
-            IDocumentRepository documentRepository,
+            IAppUserService userService,
+            IDocumentService documentService,
+            IDepartmentService departmentService,
+            IContactService contactService,
             IAuditLogService auditLogService,
-            RagChatbot.DataAccess.Data.ApplicationDbContext context,
             IWebHostEnvironment env)
         {
-            _userRepository = userRepository;
-            _documentRepository = documentRepository;
+            _userService = userService;
+            _documentService = documentService;
+            _departmentService = departmentService;
+            _contactService = contactService;
             _auditLogService = auditLogService;
-            _context = context;
             _env = env;
         }
 
-        public System.Collections.Generic.List<RagChatbot.DataAccess.EntityModels.Document> Documents { get; set; }
+        public System.Collections.Generic.IEnumerable<RagChatbot.Business.DTOs.DocumentDto> Documents { get; set; }
 
-        public void OnGet()
+        public async Task OnGetAsync()
         {
-            Documents = _context.Documents
-                                    .Include(d => d.Subject)
-                                    .OrderByDescending(d => d.UploadedAt)
-                                    .Take(10)
-                                    .ToList();
+            Documents = await _documentService.GetRecentDocumentsAsync(10);
 
-            var uploaders = _userRepository.Query()
-                .Where(u => u.Role == "HeadOfDepartment")
-                .ToList();
+            var uploaders = await _userService.GetUsersByRoleAsync("HeadOfDepartment");
+            var departments = await _departmentService.GetAllDepartmentsAsync();
 
-            var departments = _context.Departments.ToList();
+            ViewData["ActiveCount"] = await _documentService.GetActiveCountAsync();
+            ViewData["ProcessingCount"] = await _documentService.GetProcessingCountAsync();
 
-            ViewData["ActiveCount"] = _context.Documents.Count(d => d.IsActive == true);
-            ViewData["ProcessingCount"] = _context.Documents.Count(d => d.IsActive == false);
-
-            int premiumUsersCount = _userRepository.Query().Count(u => u.Subscription == AppUser.SubscriptionType.Premium);
+            int premiumUsersCount = await _userService.GetPremiumUsersCountAsync();
 
             long packagePrice = 100000;
             long totalRevenue = premiumUsersCount * packagePrice;
@@ -65,19 +61,18 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
             ViewData["PremiumCount"] = premiumUsersCount;
             ViewData["TotalRevenue"] = totalRevenue;
 
-            ViewData["PendingContactsCount"] = _context.ContactMessages.Count(c => c.Status == ContactStatus.Pending);
+            ViewData["PendingContactsCount"] = await _contactService.GetPendingCountAsync();
 
-            ViewData["Uploaders"] = uploaders;
-            ViewData["Departments"] = departments;
+            ViewData["Uploaders"] = uploaders.ToList();
+            ViewData["Departments"] = departments.ToList();
         }
 
         public async Task<IActionResult> OnPostDeleteDocumentFromDashboardAsync(int id)
         {
-            var doc = await _documentRepository.GetByIdAsync(id);
+            var doc = await _documentService.GetByIdAsync(id);
             if (doc != null)
             {
-                _documentRepository.Remove(doc);
-                await _documentRepository.SaveChangesAsync();
+                await _documentService.DeleteAsync(id);
 
                 var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
                 await _auditLogService.LogAsync(adminId, "Admin Delete Document From Dashboard", id.ToString(), $"Document Deleted");
@@ -92,9 +87,9 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
         }
 
         [Authorize(Roles = "Admin,HeadOfDepartment,Student")]
-        public IActionResult OnGetViewDocument(int id)
+        public async Task<IActionResult> OnGetViewDocumentAsync(int id)
         {
-            var document = _context.Documents.FirstOrDefault(d => d.Id == id);
+            var document = await _documentService.GetByIdAsync(id);
             if (document == null)
             {
                 TempData["Error"] = "Không tìm thấy thông tin tài liệu trên hệ thống.";

@@ -15,56 +15,42 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
     [Authorize(Roles = "Admin")]
     public class HeadOfDepartmentsModel : PageModel
     {
-        private readonly IAppUserRepository _userRepository;
+        private readonly IAppUserService _userService;
+        private readonly IDepartmentService _departmentService;
         private readonly IAuthService _authService;
         private readonly IAuditLogService _auditLogService;
-        private readonly RagChatbot.DataAccess.Data.ApplicationDbContext _context;
 
         public HeadOfDepartmentsModel(
-            IAppUserRepository userRepository,
+            IAppUserService userService,
+            IDepartmentService departmentService,
             IAuthService authService,
-            IAuditLogService auditLogService,
-            RagChatbot.DataAccess.Data.ApplicationDbContext context)
+            IAuditLogService auditLogService)
         {
-            _userRepository = userRepository;
+            _userService = userService;
+            _departmentService = departmentService;
             _authService = authService;
             _auditLogService = auditLogService;
-            _context = context;
         }
 
-        public System.Collections.Generic.List<AppUser> Hods { get; set; }
+        public System.Collections.Generic.IEnumerable<RagChatbot.Business.DTOs.AppUserDto> Hods { get; set; }
 
-        public void OnGet()
+        public async Task OnGetAsync()
         {
-            var hods = _userRepository.Query()
-                .Where(u => u.Role == "HeadOfDepartment" && u.IsActive)
-                .ToList();
-
-            var depts = _context.Departments.ToList();
-            foreach (var hod in hods)
-            {
-                if (hod.DepartmentId.HasValue)
-                {
-                    hod.Department = depts.FirstOrDefault(d => d.Id == hod.DepartmentId.Value);
-                }
-            }
-
-            Hods = hods;
-            ViewData["Departments"] = depts;
+            Hods = await _userService.GetUsersAsync("HeadOfDepartment", true, "");
+            ViewData["Departments"] = await _departmentService.GetAllDepartmentsAsync();
         }
 
         public async Task<IActionResult> OnPostCreateHodAsync(string email, string firstName, string lastName, int departmentId)
         {
-            var dept = await _context.Departments.FindAsync(departmentId);
+            var dept = await _departmentService.GetByIdAsync(departmentId);
             if (dept == null || !dept.IsActive)
             {
                 TempData["Error"] = "Không thể gán Trưởng bộ môn cho bộ môn không tồn tại hoặc đang bị vô hiệu hóa.";
                 return RedirectToPage();
             }
 
-            var existingHod = _context.AppUsers.FirstOrDefault(u => u.Role == "HeadOfDepartment" && u.DepartmentId == departmentId);
-
-            if (existingHod != null)
+            var existsHod = await _userService.HasDepartmentHodAsync(departmentId);
+            if (existsHod)
             {
                 TempData["Error"] = "Bộ môn này đã có Trưởng bộ môn. Mỗi bộ môn chỉ được phép có 1 Trưởng bộ môn.";
                 return RedirectToPage();
@@ -74,19 +60,10 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
             var success = await _authService.RegisterAsync(email, password, "HeadOfDepartment", firstName, lastName);
             if (success)
             {
-                var user = _context.AppUsers.FirstOrDefault(u => u.Email == email);
+                var user = await _userService.GetByEmailAsync(email);
                 if (user != null)
                 {
-                    user.DepartmentId = departmentId;
-                    _context.AppUsers.Update(user);
-                    
-                    _context.HodTerms.Add(new HodTerm {
-                        AppUserId = user.Id,
-                        DepartmentId = departmentId,
-                        StartAt = DateTime.UtcNow
-                    });
-                    
-                    await _context.SaveChangesAsync();
+                    await _userService.UpdateHodDepartmentAsync(user.Id, departmentId);
 
                     var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
                     await _auditLogService.LogAsync(adminId, "Create HOD", user.Id.ToString(), $"Email: {email}, Dept: {departmentId}");
@@ -113,7 +90,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
 
         public async Task<IActionResult> OnPostUpdateHodDepartmentAsync(int id, int? departmentId)
         {
-            var user = await _context.AppUsers.FirstOrDefaultAsync(u => u.Id == id);
+            var user = await _userService.GetByIdAsync(id);
             if (user == null || user.Role != "HeadOfDepartment")
             {
                 TempData["Error"] = "Không tìm thấy Trưởng bộ môn.";
@@ -122,16 +99,15 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
 
             if (departmentId.HasValue && user.DepartmentId != departmentId)
             {
-                var dept = await _context.Departments.FindAsync(departmentId.Value);
+                var dept = await _departmentService.GetByIdAsync(departmentId.Value);
                 if (dept == null || !dept.IsActive)
                 {
                     TempData["Error"] = "Không thể đổi sang bộ môn không tồn tại hoặc đang bị vô hiệu hóa.";
                     return RedirectToPage();
                 }
 
-                var existingHod = _context.AppUsers.FirstOrDefault(u => u.Role == "HeadOfDepartment" && u.DepartmentId == departmentId.Value && u.Id != id);
-
-                if (existingHod != null)
+                var existsHod = await _userService.HasDepartmentHodAsync(departmentId.Value, id);
+                if (existsHod)
                 {
                     TempData["Error"] = "Bộ môn này đã có người quản lý. Mỗi bộ môn chỉ được phép có 1 Trưởng bộ môn.";
                     return RedirectToPage();
@@ -140,25 +116,11 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
 
             if (user.DepartmentId != departmentId)
             {
-                var activeTerm = _context.HodTerms.FirstOrDefault(t => t.AppUserId == user.Id && t.EndAt == null);
-                if (activeTerm != null) activeTerm.EndAt = DateTime.UtcNow;
-
-                if (departmentId.HasValue)
-                {
-                    _context.HodTerms.Add(new HodTerm {
-                        AppUserId = user.Id,
-                        DepartmentId = departmentId.Value,
-                        StartAt = DateTime.UtcNow
-                    });
-                }
-
-                user.DepartmentId = departmentId;
-                _context.AppUsers.Update(user);
-                await _context.SaveChangesAsync();
+                await _userService.UpdateHodDepartmentAsync(id, departmentId);
             }
 
             var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-            await _auditLogService.LogAsync(adminId, "Update HOD", user.Id.ToString(), $"DeptId: {departmentId}");
+            await _auditLogService.LogAsync(adminId, "Update HOD", id.ToString(), $"DeptId: {departmentId}");
 
             TempData["Success"] = "Đổi bộ môn cho HOD thành công.";
             return RedirectToPage();
@@ -166,18 +128,13 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
 
         public async Task<IActionResult> OnPostEndHodTermAsync(int id)
         {
-            var user = await _context.AppUsers.FirstOrDefaultAsync(u => u.Id == id);
+            var user = await _userService.GetByIdAsync(id);
             if (user != null && user.Role == "HeadOfDepartment" && user.DepartmentId.HasValue)
             {
-                var activeTerm = _context.HodTerms.FirstOrDefault(t => t.AppUserId == user.Id && t.EndAt == null);
-                if (activeTerm != null) activeTerm.EndAt = DateTime.UtcNow;
-                
-                user.DepartmentId = null;
-                _context.AppUsers.Update(user);
-                await _context.SaveChangesAsync();
+                await _userService.EndHodTermAsync(id);
                 
                 var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-                await _auditLogService.LogAsync(adminId, "End HOD Term", user.Id.ToString(), $"User: {user.Email}");
+                await _auditLogService.LogAsync(adminId, "End HOD Term", id.ToString(), $"User: {user.Email}");
                 
                 TempData["Success"] = "Đã kết thúc nhiệm kỳ Trưởng bộ môn.";
             }
@@ -191,36 +148,22 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
 
         public async Task<IActionResult> OnGetHodTermHistoryAsync(int userId)
         {
-            var terms = await _context.HodTerms
-                .Include(t => t.Department)
-                .Where(t => t.AppUserId == userId)
-                .OrderByDescending(t => t.StartAt)
-                .ToListAsync();
-
-            var result = terms.Select(t => new {
-                departmentName = t.Department != null ? t.Department.Name : "Không rõ",
-                startAt = t.StartAt.ToString("dd/MM/yyyy"),
-                endAt = t.EndAt.HasValue ? t.EndAt.Value.ToString("dd/MM/yyyy") : null
-            });
-
-            return new JsonResult(result);
+            var result = await _userService.GetHodTermHistoryAsync(userId);
+            return new JsonResult(result.Select(t => new {
+                departmentName = t.DepartmentName,
+                startAt = t.StartAt,
+                endAt = t.EndAt
+            }));
         }
 
         public async Task<IActionResult> OnGetDepartmentTermHistoryAsync(int deptId)
         {
-            var terms = await _context.HodTerms
-                .Include(t => t.AppUser)
-                .Where(t => t.DepartmentId == deptId)
-                .OrderByDescending(t => t.StartAt)
-                .ToListAsync();
-
-            var result = terms.Select(t => new {
-                hodName = t.AppUser != null ? (t.AppUser.LastName + " " + t.AppUser.FirstName) : "Không rõ",
-                startAt = t.StartAt.ToString("dd/MM/yyyy"),
-                endAt = t.EndAt.HasValue ? t.EndAt.Value.ToString("dd/MM/yyyy") : null
-            });
-
-            return new JsonResult(result);
+            var result = await _userService.GetDepartmentTermHistoryAsync(deptId);
+            return new JsonResult(result.Select(t => new {
+                hodName = t.HodName,
+                startAt = t.StartAt,
+                endAt = t.EndAt
+            }));
         }
 
         private string GetWelcomeEmailHtml(string firstName, string lastName, string email, string password)

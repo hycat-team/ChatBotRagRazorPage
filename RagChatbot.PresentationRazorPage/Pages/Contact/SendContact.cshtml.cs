@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using RagChatbot.DataAccess.Data;
@@ -11,11 +11,11 @@ namespace RagChatbot.PresentationRazorPage.Pages.Contact
     [IgnoreAntiforgeryToken] // 👈 THÊM DÒNG NÀY: Để không bị lỗi bảo mật 400 khi gọi AJAX từ trang khác sang
     public class SendContactModel : PageModel // 👈 ĐÃ ĐỔI: Thành SendContactModel cho khớp đường dẫn
     {
-        private readonly ApplicationDbContext _context;
+        private readonly RagChatbot.Business.Interfaces.IContactService _contactService;
 
-        public SendContactModel(ApplicationDbContext context)
+        public SendContactModel(RagChatbot.Business.Interfaces.IContactService contactService)
         {
-            _context = context;
+            _contactService = contactService;
         }
 
         // 👈 ĐÃ ĐỔI: Thành OnPostAsync để hứng trọn đường dẫn /Contact/SendContact mà không cần truyền handler lên URL
@@ -34,18 +34,15 @@ namespace RagChatbot.PresentationRazorPage.Pages.Contact
 
             try
             {
-                var newMessage = new ContactMessage
+                var newMessage = new RagChatbot.Business.DTOs.ContactMessageDto
                 {
                     UserId = userId,
                     Content = content.Trim(),
-                    Type = type,
-                    RelatedId = relatedId,
-                    Status = ContactStatus.Pending,
-                    CreatedAt = DateTime.UtcNow
+                    Type = type.ToString(),
+                    RelatedId = relatedId
                 };
 
-                _context.ContactMessages.Add(newMessage);
-                await _context.SaveChangesAsync();
+                await _contactService.AddContactMessageAsync(newMessage);
 
                 return new JsonResult(new { success = true, message = "Gửi yêu cầu thành công! Ban quản trị sẽ xử lý sớm nhất có thể." });
             }

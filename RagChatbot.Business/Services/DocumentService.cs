@@ -93,5 +93,37 @@ namespace RagChatbot.Business.Services
             var entities = await _chunkRepository.GetAllAsync();
             return entities.Select(e => e.ToDto()!).ToList();
         }
+
+        public async Task<IEnumerable<DocumentChunkDto>> GetChunksForDocumentAsync(int documentId)
+        {
+            var entities = await _chunkRepository.FindAsync(c => c.DocumentId == documentId);
+            return entities.Select(e => e.ToDto()!).ToList();
+        }
+
+        public async Task<IEnumerable<DocumentDto>> GetRecentDocumentsAsync(int count)
+        {
+            var entities = await _documentRepository.Query()
+                .Include(d => d.Subject)
+                .OrderByDescending(d => d.UploadedAt)
+                .Take(count)
+                .ToListAsync();
+            return entities.Select(e => e.ToDto()!).ToList();
+        }
+
+        public async Task<int> GetActiveCountAsync()
+        {
+            return await _documentRepository.Query().CountAsync(d => d.IsActive == true);
+        }
+
+        public async Task<int> GetProcessingCountAsync()
+        {
+            return await _documentRepository.Query().CountAsync(d => d.IsActive == false);
+        }
+
+        public async Task<string?> GetDocumentFilePathAsync(int id)
+        {
+            var document = await _documentRepository.GetByIdAsync(id);
+            return document?.FilePath;
+        }
     }
 }

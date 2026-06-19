@@ -1,13 +1,13 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using RagChatbot.DataAccess.Data;
+using RagChatbot.Business.Interfaces;
 using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace RagChatbot.Business.Services
+namespace RagChatbot.PresentationRazorPage.BackgroundJobs
 {
     public class ChatLogCleanupJob : BackgroundService
     {
@@ -27,20 +27,11 @@ namespace RagChatbot.Business.Services
                 try
                 {
                     using var scope = _serviceProvider.CreateScope();
-                    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                    var chatService = scope.ServiceProvider.GetRequiredService<IChatService>();
 
                     var sixMonthsAgo = DateTime.UtcNow.AddMonths(-6);
-                    
-                    var oldSessions = dbContext.ChatSessions
-                        .Where(s => s.CreatedAt < sixMonthsAgo)
-                        .ToList();
-
-                    if (oldSessions.Any())
-                    {
-                        dbContext.ChatSessions.RemoveRange(oldSessions);
-                        await dbContext.SaveChangesAsync(stoppingToken);
-                        _logger.LogInformation($"Cleaned up {oldSessions.Count} old chat sessions.");
-                    }
+                    await chatService.CleanupOldChatSessionsAsync(sixMonthsAgo);
+                    _logger.LogInformation("Triggered old chat sessions cleanup via ChatService.");
                 }
                 catch (Exception ex)
                 {

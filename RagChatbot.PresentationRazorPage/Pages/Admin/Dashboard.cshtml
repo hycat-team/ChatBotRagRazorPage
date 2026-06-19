@@ -1,12 +1,12 @@
-﻿@page
+@page
 @model RagChatbot.PresentationRazorPage.Pages.Admin.DashboardModel
 @using RagChatbot.DataAccess.EntityModels
 @using RagChatbot.DataAccess.EntityModels
 
 @{
     ViewData["Title"] = "Dashboard Giám sát Hệ thống";
-    var uploaders = ViewBag.Uploaders as List<AppUser> ?? new List<AppUser>();
-    var departments = ViewBag.Departments as List<Department> ?? new List<Department>();
+    var uploaders = ViewBag.Uploaders as List<RagChatbot.Business.DTOs.AppUserDto> ?? new List<RagChatbot.Business.DTOs.AppUserDto>();
+    var departments = ViewBag.Departments as List<RagChatbot.Business.DTOs.DepartmentDto> ?? new List<RagChatbot.Business.DTOs.DepartmentDto>();
     int procCount = ViewBag.ProcessingCount ?? 0;
 
     // --- ĐỌC DỮ LIỆU DOANH THU & PREMIUM TỪ CONTROLLER BẮN QUA ---

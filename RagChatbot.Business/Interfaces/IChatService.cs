@@ -13,5 +13,6 @@ namespace RagChatbot.Business.Interfaces
         Task<IEnumerable<ChatMessageDto>> GetRecentSessionMessagesAsync(Guid sessionId, int limit, int? excludeMessageId = null);
         Task<ChatMessageDto> AddMessageAsync(CreateChatMessageDto message);
         Task ClearHistoryAsync(int subjectId, int userId);
+        Task CleanupOldChatSessionsAsync(DateTime beforeDate);
     }
 }

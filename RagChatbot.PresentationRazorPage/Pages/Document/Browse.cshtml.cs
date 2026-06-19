@@ -12,14 +12,21 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
     [Authorize(Roles = "Student")]
     public class BrowseModel : PageModel
     {
-        private readonly RagChatbot.DataAccess.Data.ApplicationDbContext _context;
+        private readonly RagChatbot.Business.Interfaces.IDocumentService _documentService;
+        private readonly RagChatbot.Business.Interfaces.ISubjectService _subjectService;
+        private readonly RagChatbot.Business.Interfaces.IAppUserService _userService;
 
-        public BrowseModel(RagChatbot.DataAccess.Data.ApplicationDbContext context)
+        public BrowseModel(
+            RagChatbot.Business.Interfaces.IDocumentService documentService,
+            RagChatbot.Business.Interfaces.ISubjectService subjectService,
+            RagChatbot.Business.Interfaces.IAppUserService userService)
         {
-            _context = context;
+            _documentService = documentService;
+            _subjectService = subjectService;
+            _userService = userService;
         }
 
-        public System.Collections.Generic.List<RagChatbot.DataAccess.EntityModels.Document> Documents { get; set; } = new List<RagChatbot.DataAccess.EntityModels.Document>();
+        public System.Collections.Generic.IEnumerable<RagChatbot.Business.DTOs.DocumentDto> Documents { get; set; } = new List<RagChatbot.Business.DTOs.DocumentDto>();
 
         public async Task OnGetAsync(int? subjectId, string searchString)
         {
@@ -27,20 +34,19 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
             bool isPremium = false;
             if (int.TryParse(userIdStr, out int userId))
             {
-                var user = await _context.AppUsers.FindAsync(userId);
+                var user = await _userService.GetByIdAsync(userId);
                 if (user != null)
                 {
-                    isPremium = user.Subscription == AppUser.SubscriptionType.Premium;
+                    isPremium = user.Subscription == "Premium";
                 }
             }
             ViewData["IsPremium"] = isPremium; 
                                            
-            var subjects = _context.Subjects.OrderBy(s => s.Name).ToList();
+            var allSubjects = await _subjectService.GetAllAsync();
+            var subjects = allSubjects.OrderBy(s => s.Name).ToList();
 
-            var query = _context.Documents
-                .Include(d => d.Subject)
-                .Where(d => d.Status == "Indexed" && d.IsActive)
-                .AsQueryable();
+            var allDocs = await _documentService.GetAllAsync();
+            var query = allDocs.Where(d => d.Status == "Indexed" && d.IsActive);
 
             if (subjectId.HasValue && subjectId.Value > 0)
             {
@@ -54,7 +60,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
                                      (d.DisplayName != null && d.DisplayName.ToLower().Contains(keyword)));
             }
 
-            Documents = await query.OrderByDescending(d => d.UploadedAt).ToListAsync();
+            Documents = query.OrderByDescending(d => d.UploadedAt).ToList();
 
             ViewData["Subjects"] = subjects;
             ViewData["SelectedSubjectId"] = subjectId;

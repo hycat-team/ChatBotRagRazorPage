@@ -13,21 +13,21 @@ namespace RagChatbot.PresentationRazorPage.Pages.Profile
     [Authorize]
     public class IndexModel : PageModel
     {
-        private readonly IAppUserRepository _userRepository;
+        private readonly RagChatbot.Business.Interfaces.IAppUserService _userService;
 
-        public IndexModel(IAppUserRepository userRepository)
+        public IndexModel(RagChatbot.Business.Interfaces.IAppUserService userService)
         {
-            _userRepository = userRepository;
+            _userService = userService;
         }
 
-        public RagChatbot.DataAccess.EntityModels.AppUser UserProfile { get; set; }
+        public RagChatbot.Business.DTOs.AppUserDto UserProfile { get; set; }
 
         public async Task<IActionResult> OnGetAsync()
         {
             var userEmail = User.FindFirst(ClaimTypes.Name)?.Value;
             if (string.IsNullOrEmpty(userEmail)) return RedirectToPage("/Auth/Login");
 
-            var user = await _userRepository.GetByEmailAsync(userEmail);
+            var user = await _userService.GetByEmailAsync(userEmail);
             if (user == null) return RedirectToPage("/Auth/Login");
 
             UserProfile = user;
@@ -49,34 +49,22 @@ namespace RagChatbot.PresentationRazorPage.Pages.Profile
             }
 
             var userEmail = User.FindFirst(ClaimTypes.Name)?.Value;
-            var user = await _userRepository.GetByEmailAsync(userEmail);
-
-            if (user == null)
+            if (string.IsNullOrEmpty(userEmail))
             {
                 TempData["Error"] = "Không tìm thấy thông tin người dùng.";
                 return RedirectToPage();
             }
 
-            var hashedOld = HashPassword(oldPassword);
-            if (user.PasswordHash != hashedOld)
+            var success = await _userService.VerifyAndChangePasswordAsync(userEmail, oldPassword, newPassword);
+
+            if (!success)
             {
-                TempData["Error"] = "Mật khẩu cũ không chính xác.";
+                TempData["Error"] = "Đổi mật khẩu thất bại. Kiểm tra lại mật khẩu cũ.";
                 return RedirectToPage();
             }
 
-            user.PasswordHash = HashPassword(newPassword);
-            await _userRepository.SaveChangesAsync();
-
             TempData["Success"] = "Đổi mật khẩu thành công!";
             return RedirectToPage();
-        }
-
-        private string HashPassword(string password)
-        {
-            using var sha256 = SHA256.Create();
-            var bytes = Encoding.UTF8.GetBytes(password);
-            var hash = sha256.ComputeHash(bytes);
-            return Convert.ToBase64String(hash);
         }
     }
 }

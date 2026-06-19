@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using RagChatbot.DataAccess.EntityModels;
 using RagChatbot.DataAccess.Interfaces;
@@ -9,12 +9,11 @@ namespace RagChatbot.PresentationRazorPage.Pages.Wallet
 {
     public class IndexModel : PageModel
     {
-        private readonly IAppUserRepository _userRepository;
+        private readonly RagChatbot.Business.Interfaces.IAppUserService _userService;
 
-        // TIÊM REPOSITORY VÀO CONSTRUCTOR ĐỂ SỬ DỤNG DATABASE
-        public IndexModel(IAppUserRepository userRepository)
+        public IndexModel(RagChatbot.Business.Interfaces.IAppUserService userService)
         {
-            _userRepository = userRepository;
+            _userService = userService;
         }
 
         public void OnGet()
@@ -81,21 +80,14 @@ namespace RagChatbot.PresentationRazorPage.Pages.Wallet
                 string responseCode = vnpay.GetResponseData("vnp_ResponseCode");
                 if (responseCode == "00")
                 {
-                    // ─── TIẾN HÀNH NÂNG CẤP PREMIUM TRONG DATABASE ───
                     var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                     if (int.TryParse(userIdStr, out int uId))
                     {
-                        var currentUser = await _userRepository.GetByIdAsync(uId);
+                        var currentUser = await _userService.GetByIdAsync(uId);
                         if (currentUser != null)
                         {
-                            // Đổi trạng thái gói thành Premium
-                            currentUser.Subscription = AppUser.SubscriptionType.Premium;
-
-                            // 1. Đánh dấu thực thể thay đổi (Lưu tạm trên RAM)
-                            _userRepository.Update(currentUser);
-
-                            // 2. FIX CHÍ CHÓT: Lưu chính thức và ghi đè xuống Database vật lý
-                            await _userRepository.SaveChangesAsync(); // 👈 CHÈN THÊM DÒNG NÀY VÀO ĐÂY
+                            currentUser.Subscription = "Premium";
+                            await _userService.UpdateUserAsync(currentUser);
                         }
                     }
 

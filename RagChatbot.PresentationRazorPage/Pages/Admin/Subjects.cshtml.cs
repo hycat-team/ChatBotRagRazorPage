@@ -17,37 +17,36 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
     public class SubjectsModel : PageModel
     {
         private readonly IAuditLogService _auditLogService;
-        private readonly RagChatbot.DataAccess.Data.ApplicationDbContext _context;
+        private readonly ISubjectService _subjectService;
+        private readonly IDepartmentService _departmentService;
         private readonly IHubContext<AppNotificationHub> _hubContext;
 
         public SubjectsModel(
             IAuditLogService auditLogService,
-            RagChatbot.DataAccess.Data.ApplicationDbContext context,
+            ISubjectService subjectService,
+            IDepartmentService departmentService,
             IHubContext<AppNotificationHub> hubContext)
         {
             _auditLogService = auditLogService;
-            _context = context;
+            _subjectService = subjectService;
+            _departmentService = departmentService;
             _hubContext = hubContext;
         }
 
-        public System.Collections.Generic.List<Subject> SubjectsList { get; set; }
+        public System.Collections.Generic.IEnumerable<RagChatbot.Business.DTOs.SubjectDto> SubjectsList { get; set; }
 
         public async Task OnGetAsync()
         {
-            SubjectsList = await _context.Subjects
-                .Include(s => s.Department)
-                .ThenInclude(d => d.Users)
-                .OrderByDescending(s => s.Id)
-                .ToListAsync();
+            SubjectsList = await _subjectService.GetAllAsync();
             
-            ViewData["Departments"] = await _context.Departments.ToListAsync();
+            ViewData["Departments"] = await _departmentService.GetAllDepartmentsAsync();
         }
 
         public async Task<IActionResult> OnPostCreateSubjectAsync(string code, string name, int departmentId)
         {
             if (!string.IsNullOrWhiteSpace(code) && !string.IsNullOrWhiteSpace(name) && departmentId > 0)
             {
-                var exists = await _context.Subjects.AnyAsync(s => s.Code == code);
+                var exists = await _subjectService.ExistsByCodeAsync(code);
                 if (exists)
                 {
                     TempData["Error"] = "Mã môn học đã tồn tại.";
@@ -55,18 +54,16 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
                 }
 
                 var adminId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
-                var subject = new Subject
+                var subjectDto = new RagChatbot.Business.DTOs.CreateSubjectDto
                 {
                     Code = code,
                     Name = name,
-                    DepartmentId = departmentId,
-                    IsActive = true
+                    DepartmentId = departmentId
                 };
                 
-                _context.Subjects.Add(subject);
-                await _context.SaveChangesAsync();
+                var createdSubject = await _subjectService.AddAsync(subjectDto);
                 
-                await _auditLogService.LogAsync(adminId, "Create Subject", subject.Id.ToString(), $"Code: {code}, Name: {name}, DeptId: {departmentId}");
+                await _auditLogService.LogAsync(adminId, "Create Subject", createdSubject.Id.ToString(), $"Code: {code}, Name: {name}, DeptId: {departmentId}");
                 await _hubContext.Clients.All.SendAsync("SubjectListChanged");
                 TempData["Success"] = "Tạo môn học thành công.";
             }
@@ -110,26 +107,24 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
                 var code = parts[0].Trim();
                 var name = parts[1].Trim();
 
-                var exists = await _context.Subjects.AnyAsync(s => s.Code == code);
+                var exists = await _subjectService.ExistsByCodeAsync(code);
                 if (exists)
                 {
                     failCount++;
                     continue;
                 }
 
-                var subject = new Subject
+                var subjectDto = new RagChatbot.Business.DTOs.CreateSubjectDto
                 {
                     Code = code,
                     Name = name,
-                    DepartmentId = departmentId,
-                    IsActive = true
+                    DepartmentId = departmentId
                 };
                 
-                _context.Subjects.Add(subject);
+                await _subjectService.AddAsync(subjectDto);
                 successCount++;
             }
 
-            await _context.SaveChangesAsync();
             await _auditLogService.LogAsync(adminId, "Bulk Create Subjects", "", $"Created {successCount} subjects");
             await _hubContext.Clients.All.SendAsync("SubjectListChanged");
 
@@ -145,39 +140,38 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
             return RedirectToPage();
         }
 
-        public async Task<IActionResult> OnPostToggleActiveAsync(int id)
+        public async Task<IActionResult> OnPostUpdateSubjectAsync(int id, string code, string name)
         {
-            var subject = await _context.Subjects
-                .Include(s => s.Department)
-                .ThenInclude(d => d.Users)
-                .FirstOrDefaultAsync(s => s.Id == id);
+            if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name))
+            {
+                TempData["Error"] = "Vui lòng nhập đủ thông tin.";
+                return RedirectToPage();
+            }
 
+            var subject = await _subjectService.GetByIdAsync(id);
             if (subject == null)
             {
-                return BadRequest("Môn học không tồn tại.");
+                TempData["Error"] = "Môn học không tồn tại.";
+                return RedirectToPage();
             }
 
-            var hasManager = subject.Department?.Users?.Any(u => u.Role == "HeadOfDepartment") ?? false;
-            if (subject.IsActive && hasManager)
+            var exists = await _subjectService.ExistsByCodeAsync(code, id);
+            if (exists)
             {
-                // Trả về lỗi 400 kèm thông điệp trực tiếp cho AJAX bắt được
-                return BadRequest("Không thể vô hiệu hóa môn học đang có Trưởng bộ môn quản lý.");
+                TempData["Error"] = "Mã môn học đã tồn tại.";
+                return RedirectToPage();
             }
 
-            if (!subject.IsActive && subject.Department != null && !subject.Department.IsActive)
-            {
-                return BadRequest("Không thể kích hoạt môn học vì bộ môn của nó đang bị vô hiệu hóa.");
-            }
-
-            subject.IsActive = !subject.IsActive;
-            await _context.SaveChangesAsync();
+            subject.Code = code;
+            subject.Name = name;
+            await _subjectService.UpdateAsync(subject);
 
             var adminId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
-            await _auditLogService.LogAsync(adminId, "Toggle Subject Active", subject.Id.ToString(), $"IsActive changed to {subject.IsActive}");
+            await _auditLogService.LogAsync(adminId, "Update Subject", subject.Id.ToString(), $"Code: {code}, Name: {name}");
             await _hubContext.Clients.All.SendAsync("SubjectListChanged");
 
-            // Trả về kết quả thành công dưới dạng JSON
-            return new JsonResult(new { success = true, isActive = subject.IsActive });
+            TempData["Success"] = "Cập nhật môn học thành công.";
+            return RedirectToPage();
         }
 
     }

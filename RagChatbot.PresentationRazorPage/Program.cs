@@ -90,6 +90,9 @@ builder.Services.AddScoped<IChatMessageRepository, ChatMessageRepository>();
 builder.Services.AddScoped<ISubjectService, SubjectService>();
 builder.Services.AddScoped<IDocumentService, DocumentService>();
 builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddScoped<IAppUserService, AppUserService>();
+builder.Services.AddScoped<IDepartmentService, DepartmentService>();
+builder.Services.AddScoped<IContactService, ContactService>();
 builder.Services.AddScoped<IDocumentExtractionService, DocumentExtractionService>();
 builder.Services.AddScoped<ITextChunkingService, TextChunkingService>();
 builder.Services.AddScoped<IAiService, AiService>();
@@ -98,13 +101,13 @@ builder.Services.AddSingleton<ILocalStorageService, LocalStorageService>();
 builder.Services.AddScoped<IVectorSearchService, VectorSearchService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
+builder.Services.AddScoped<IDocumentProcessingService, DocumentProcessingService>();
 builder.Services.AddSingleton<IEmailQueue, EmailQueue>();
-builder.Services.AddSingleton<IDocumentNotificationService, RagChatbot.PresentationRazorPage.Services.DocumentNotificationService>();
 
 // Register Background Service
-builder.Services.AddHostedService<DocumentProcessingJob>();
-builder.Services.AddHostedService<ChatLogCleanupJob>();
-builder.Services.AddHostedService<EmailBackgroundService>();
+builder.Services.AddHostedService<RagChatbot.PresentationRazorPage.BackgroundJobs.DocumentProcessingJob>();
+builder.Services.AddHostedService<RagChatbot.PresentationRazorPage.BackgroundJobs.ChatLogCleanupJob>();
+builder.Services.AddHostedService<RagChatbot.PresentationRazorPage.BackgroundJobs.EmailBackgroundService>();
 
 var app = builder.Build();
 

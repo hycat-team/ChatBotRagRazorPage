@@ -83,5 +83,15 @@ namespace RagChatbot.Business.Services
                 await _messageRepository.SaveChangesAsync();
             }
         }
+
+        public async Task CleanupOldChatSessionsAsync(DateTime beforeDate)
+        {
+            var oldSessions = _sessionRepository.Query().Where(s => s.CreatedAt < beforeDate).ToList();
+            if (oldSessions.Any())
+            {
+                _sessionRepository.RemoveRange(oldSessions);
+                await _sessionRepository.SaveChangesAsync();
+            }
+        }
     }
 }

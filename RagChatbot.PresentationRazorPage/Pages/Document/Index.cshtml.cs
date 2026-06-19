@@ -24,26 +24,23 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
     {
         private readonly IDocumentService _documentService;
         private readonly ISubjectService _subjectService;
-        private readonly IChatService _chatService;
+        private readonly IAppUserService _userService;
         private readonly Microsoft.AspNetCore.Hosting.IWebHostEnvironment _env;
-        private readonly RagChatbot.DataAccess.Data.ApplicationDbContext _context;
         private readonly IAuditLogService _auditLogService;
         private readonly IHubContext<RagChatbot.PresentationRazorPage.Hubs.AppNotificationHub> _hubContext;
 
         public IndexModel(
             IDocumentService documentService,
             ISubjectService subjectService,
-            IChatService chatService,
+            IAppUserService userService,
             Microsoft.AspNetCore.Hosting.IWebHostEnvironment env,
-            RagChatbot.DataAccess.Data.ApplicationDbContext context,
             IAuditLogService auditLogService,
-            IHubContext<RagChatbot.PresentationRazorPage.Hubs.AppNotificationHub> hubContext) // 🔥 Đã sửa full namespace ở đây
+            IHubContext<RagChatbot.PresentationRazorPage.Hubs.AppNotificationHub> hubContext)
         {
             _documentService = documentService;
             _subjectService = subjectService;
-            _chatService = chatService;
+            _userService = userService;
             _env = env;
-            _context = context;
             _auditLogService = auditLogService;
             _hubContext = hubContext;
         }
@@ -63,7 +60,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
             var isHod = User.IsInRole("HeadOfDepartment");
             var isStudent = User.IsInRole("Student");
 
-            var subjectsQuery = _context.Subjects.Include(s => s.Documents).AsQueryable();
+            var subjectsQuery = await _subjectService.GetAllAsync();
 
             if (isAdmin || isStudent)
             {
@@ -71,19 +68,19 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
             }
             else if (isHod)
             {
-                var hodUser = _context.AppUsers.FirstOrDefault(u => u.Id == userId);
+                var hodUser = await _userService.GetByIdAsync(userId);
                 if (hodUser != null && hodUser.DepartmentId != null)
                 {
                     subjectsQuery = subjectsQuery.Where(s => s.DepartmentId == hodUser.DepartmentId);
                 }
                 else
                 {
-                    subjectsQuery = subjectsQuery.Where(s => false);
+                    subjectsQuery = new List<RagChatbot.Business.DTOs.SubjectDto>();
                 }
             }
             else
             {
-                subjectsQuery = subjectsQuery.Where(s => false);
+                subjectsQuery = new List<RagChatbot.Business.DTOs.SubjectDto>();
             }
 
             var subjects = subjectsQuery.ToList();
@@ -106,7 +103,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
             ViewModel = new RagChatbot.PresentationRazorPage.ViewModels.DocumentIndexViewModel
             {
                 Documents = documents,
-                Subjects = subjects.Select(s => s.ToDto(true)!).ToList(),
+                Subjects = subjects,
                 LastSelectedSubjectId = lastSelectedSubjectId
             };
             return Page();
@@ -132,7 +129,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
             var isHod = User.IsInRole("HeadOfDepartment");
             if (isHod)
             {
-                var hodUser = _context.AppUsers.FirstOrDefault(u => u.Id == userId);
+                var hodUser = await _userService.GetByIdAsync(userId);
                 if (subject.DepartmentId != hodUser?.DepartmentId)
                 {
                     if (Request.Headers["Accept"].ToString().Contains("application/json")) return new JsonResult(new { success = false, message = "Môn học này không thuộc bộ môn của bạn." });
@@ -235,7 +232,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
                 int? deptId = null;
                 if (isHod)
                 {
-                    var hodUser = _context.AppUsers.FirstOrDefault(u => u.Id == userId);
+                    var hodUser = await _userService.GetByIdAsync(userId);
                     deptId = hodUser?.DepartmentId;
                 }
 
@@ -250,25 +247,9 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
             return RedirectToPage();
         }
 
-        public async Task<IActionResult> OnPostRenameSubjectAsync(int id, string name)
-        {
-            var subject = await _subjectService.GetByIdAsync(id);
-            if (subject == null) return new JsonResult(new { success = false, message = "Subject not found." });
 
-            subject.Name = name.Trim();
-            await _subjectService.UpdateAsync(subject);
-            return new JsonResult(new { success = true, name = subject.Name });
-        }
 
-        public async Task<IActionResult> OnPostDeleteSubjectAsync(int id)
-        {
-            var subject = await _subjectService.GetByIdAsync(id);
 
-            if (subject == null) return new JsonResult(new { success = false, message = "Subject not found." });
-
-            await _subjectService.DeleteAsync(id);
-            return new JsonResult(new { success = true });
-        }
 
         public async Task<IActionResult> OnPostDeleteDocumentAsync(int id)
         {
@@ -282,7 +263,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
             if (isHod && !canDelete)
             {
                 var subject = await _subjectService.GetByIdAsync(document.SubjectId);
-                var hodUser = _context.AppUsers.FirstOrDefault(u => u.Id == userId);
+                var hodUser = await _userService.GetByIdAsync(userId);
                 if (subject != null && subject.DepartmentId == hodUser?.DepartmentId)
                 {
                     canDelete = true;
@@ -312,7 +293,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
             if (!canToggle && User.IsInRole("HeadOfDepartment"))
             {
                 var subject = await _subjectService.GetByIdAsync(document.SubjectId);
-                var hodUser = _context.AppUsers.FirstOrDefault(u => u.Id == userId);
+                var hodUser = await _userService.GetByIdAsync(userId);
                 if (subject != null && subject.DepartmentId == hodUser?.DepartmentId)
                 {
                     canToggle = true;
@@ -345,7 +326,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
             if (isHod && !canRename)
             {
                 var subject = await _subjectService.GetByIdAsync(document.SubjectId);
-                var hodUser = _context.AppUsers.FirstOrDefault(u => u.Id == userId);
+                var hodUser = await _userService.GetByIdAsync(userId);
                 if (subject != null && subject.DepartmentId == hodUser?.DepartmentId)
                 {
                     canRename = true;
@@ -381,7 +362,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
             return new JsonResult(indexedDocs);
         }
 
-        public async Task<IActionResult> OnGetDocumentChunksAsync(int id, [FromServices] IDocumentChunkRepository chunkRepository)
+        public async Task<IActionResult> OnGetDocumentChunksAsync(int id)
         {
             var userId = GetCurrentUserId();
             var document = await _documentService.GetByIdAsync(id);
@@ -394,7 +375,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
             if (!canView && User.IsInRole("HeadOfDepartment"))
             {
                 var subject = await _subjectService.GetByIdAsync(document.SubjectId);
-                var hodUser = _context.AppUsers.FirstOrDefault(u => u.Id == userId);
+                var hodUser = await _userService.GetByIdAsync(userId);
                 if (subject != null && subject.DepartmentId == hodUser?.DepartmentId)
                 {
                     canView = true;
@@ -406,7 +387,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
                 return new JsonResult(new { success = false, message = "Bạn không có quyền xem tài liệu này." });
             }
 
-            var chunks = await chunkRepository.FindAsync(c => c.DocumentId == id);
+            var chunks = await _documentService.GetChunksForDocumentAsync(id);
             var result = chunks.Select(c => new {
                 id = c.Id,
                 content = c.Content,
@@ -423,8 +404,8 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
                 var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
                 if (int.TryParse(userIdStr, out int userId))
                 {
-                    var user = await _context.AppUsers.FindAsync(userId);
-                    if (user != null && user.Subscription == AppUser.SubscriptionType.Free)
+                    var user = await _userService.GetByIdAsync(userId);
+                    if (user != null && user.Subscription == "Free")
                     {
                         TempData["Error"] = "Tính năng đọc tài liệu chỉ dành riêng cho tài khoản Premium. Vui lòng nâng cấp gói để mở khóa!";
                         return RedirectToPage("/Document/Browse");
@@ -432,7 +413,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
                 }
             }
 
-            var document = await _context.Documents.FirstOrDefaultAsync(d => d.Id == id);
+            var document = await _documentService.GetByIdAsync(id);
             if (document == null)
             {
                 TempData["Error"] = "Không tìm thấy thông tin tài liệu trên hệ thống.";

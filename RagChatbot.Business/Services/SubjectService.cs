@@ -37,6 +37,16 @@ namespace RagChatbot.Business.Services
             return entities.Select(s => s.ToDto()!).ToList();
         }
 
+        public async Task<IEnumerable<SubjectDto>> GetByDepartmentIdAsync(int departmentId)
+        {
+            var entities = await _subjectRepository.Query()
+                .Include(s => s.Documents)
+                .Include(s => s.Department)
+                .Where(s => s.DepartmentId == departmentId && s.IsActive)
+                .ToListAsync();
+            return entities.Select(s => s.ToDto()!).ToList();
+        }
+
         public async Task<IEnumerable<SubjectDto>> GetAllAsync()
         {
             var entities = await _subjectRepository.Query()
@@ -74,6 +84,16 @@ namespace RagChatbot.Business.Services
                 _subjectRepository.Remove(subject);
                 await _subjectRepository.SaveChangesAsync();
             }
+        }
+
+        public async Task<bool> ExistsByCodeAsync(string code, int? excludeId = null)
+        {
+            var query = _subjectRepository.Query().Where(s => s.Code == code);
+            if (excludeId.HasValue)
+            {
+                query = query.Where(s => s.Id != excludeId.Value);
+            }
+            return await query.AnyAsync();
         }
     }
 }

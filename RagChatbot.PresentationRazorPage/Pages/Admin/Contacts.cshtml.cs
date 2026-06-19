@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using RagChatbot.DataAccess.EntityModels;
@@ -11,22 +11,19 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
     [Authorize(Roles = "Admin")]
     public class ContactsModel : PageModel
     {
-        private readonly RagChatbot.DataAccess.Data.ApplicationDbContext _context;
+        private readonly RagChatbot.Business.Interfaces.IContactService _contactService;
 
-        public ContactsModel(RagChatbot.DataAccess.Data.ApplicationDbContext context)
+        public ContactsModel(RagChatbot.Business.Interfaces.IContactService contactService)
         {
-            _context = context;
+            _contactService = contactService;
         }
 
         // Khởi tạo sẵn một danh sách rỗng để phòng trường hợp DB chưa kịp tải dữ liệu
-        public List<ContactMessage> ContactMessages { get; set; } = new List<ContactMessage>();
+        public IEnumerable<RagChatbot.Business.DTOs.ContactMessageDto> ContactMessages { get; set; } = new List<RagChatbot.Business.DTOs.ContactMessageDto>();
 
         public async Task OnGetAsync()
         {
-            ContactMessages = await _context.ContactMessages
-                                        .Include(c => c.User)
-                                        .OrderByDescending(c => c.CreatedAt)
-                                        .ToListAsync();
+            ContactMessages = await _contactService.GetAllContactMessagesAsync();
         }
     }
 }

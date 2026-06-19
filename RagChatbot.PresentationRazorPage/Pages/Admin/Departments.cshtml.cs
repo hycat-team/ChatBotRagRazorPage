@@ -16,36 +16,38 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
     public class DepartmentsModel : PageModel
     {
         private readonly IAuditLogService _auditLogService;
-        private readonly RagChatbot.DataAccess.Data.ApplicationDbContext _context;
+        private readonly IDepartmentService _departmentService;
+        private readonly IAppUserService _userService;
         private readonly IHubContext<AppNotificationHub> _hubContext;
 
         public DepartmentsModel(
             IAuditLogService auditLogService,
-            RagChatbot.DataAccess.Data.ApplicationDbContext context,
+            IDepartmentService departmentService,
+            IAppUserService userService,
             IHubContext<AppNotificationHub> hubContext)
         {
             _auditLogService = auditLogService;
-            _context = context;
+            _departmentService = departmentService;
+            _userService = userService;
             _hubContext = hubContext;
         }
 
-        public System.Collections.Generic.List<Department> DepartmentsList { get; set; }
+        public System.Collections.Generic.IEnumerable<RagChatbot.Business.DTOs.DepartmentDto> DepartmentsList { get; set; }
 
-        public void OnGet()
+        public async Task OnGetAsync()
         {
-            DepartmentsList = _context.Departments.OrderByDescending(d => d.Id).ToList();
+            DepartmentsList = await _departmentService.GetAllDepartmentsAsync();
         }
 
         public async Task<IActionResult> OnPostCreateDepartmentAsync(string name, string description)
         {
             if (!string.IsNullOrWhiteSpace(name))
             {
-                var dept = new Department { Name = name, Description = description, IsActive = true };
-                _context.Departments.Add(dept);
-                await _context.SaveChangesAsync();
+                var deptDto = new RagChatbot.Business.DTOs.DepartmentDto { Name = name, Description = description, IsActive = true };
+                var createdDept = await _departmentService.AddDepartmentAsync(deptDto);
 
                 var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-                await _auditLogService.LogAsync(adminId, "Create Department", dept.Id.ToString(), $"Name: {name}");
+                await _auditLogService.LogAsync(adminId, "Create Department", createdDept.Id.ToString(), $"Name: {name}");
 
                 TempData["Success"] = "Tạo Bộ môn thành công.";
             }
@@ -54,22 +56,21 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
 
         public async Task<IActionResult> OnPostDeleteDepartmentAsync(int id)
         {
-            var dept = await _context.Departments.FindAsync(id);
+            var dept = await _departmentService.GetByIdAsync(id);
             if (dept != null)
             {
                 // Check if any HOD is currently managing this department
-                bool isManaged = await _context.AppUsers.AnyAsync(u => u.DepartmentId == id && u.Role == "HeadOfDepartment");
+                bool isManaged = await _userService.HasDepartmentHodAsync(id);
                 if (isManaged)
                 {
                     TempData["Error"] = "Không thể xóa bộ môn này vì đang có Trưởng bộ môn quản lý.";
                     return RedirectToPage();
                 }
 
-                _context.Departments.Remove(dept);
-                await _context.SaveChangesAsync();
+                await _departmentService.DeleteDepartmentAsync(id);
 
                 var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-                await _auditLogService.LogAsync(adminId, "Delete Department", dept.Id.ToString(), $"Name: {dept.Name}");
+                await _auditLogService.LogAsync(adminId, "Delete Department", id.ToString(), $"Name: {dept.Name}");
 
                 TempData["Success"] = "Xóa bộ môn thành công.";
             }
@@ -125,16 +126,15 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
 
         public async Task<IActionResult> OnPostUpdateDepartmentAsync(int id, string name, string description)
         {
-            var dept = await _context.Departments.FindAsync(id);
+            var dept = await _departmentService.GetByIdAsync(id);
             if (dept != null && !string.IsNullOrWhiteSpace(name))
             {
                 dept.Name = name;
                 dept.Description = description;
-                _context.Departments.Update(dept);
-                await _context.SaveChangesAsync();
+                await _departmentService.UpdateDepartmentAsync(dept);
 
                 var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-                await _auditLogService.LogAsync(adminId, "Update Department", dept.Id.ToString(), $"Name: {name}");
+                await _auditLogService.LogAsync(adminId, "Update Department", id.ToString(), $"Name: {name}");
 
                 TempData["Success"] = "Cập nhật bộ môn thành công.";
             }
@@ -146,19 +146,12 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
         }
         public async Task<IActionResult> OnGetDepartmentTermHistoryAsync(int deptId)
         {
-            var terms = await _context.HodTerms
-                .Include(t => t.AppUser)
-                .Where(t => t.DepartmentId == deptId)
-                .OrderByDescending(t => t.StartAt)
-                .ToListAsync();
-
-            var result = terms.Select(t => new {
-                hodName = t.AppUser != null ? (t.AppUser.LastName + " " + t.AppUser.FirstName) : "Không rõ",
-                startAt = t.StartAt.ToString("dd/MM/yyyy"),
-                endAt = t.EndAt.HasValue ? t.EndAt.Value.ToString("dd/MM/yyyy") : null
-            });
-
-            return new JsonResult(result);
+            var result = await _userService.GetDepartmentTermHistoryAsync(deptId);
+            return new JsonResult(result.Select(t => new {
+                hodName = t.HodName,
+                startAt = t.StartAt,
+                endAt = t.EndAt
+            }));
         }
     }
 }
