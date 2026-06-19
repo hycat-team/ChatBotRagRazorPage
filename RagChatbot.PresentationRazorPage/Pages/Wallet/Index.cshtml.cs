@@ -1,119 +1,117 @@
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.Extensions.Configuration;
 using RagChatbot.DataAccess.EntityModels;
 using RagChatbot.DataAccess.Interfaces;
 using RagChatbot.PresentationRazorPage.Helpers;
-using System;
 using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace RagChatbot.PresentationRazorPage.Pages.Wallet
 {
     public class IndexModel : PageModel
     {
-        private readonly IConfiguration _configuration;
         private readonly IAppUserRepository _userRepository;
 
-        public IndexModel(IConfiguration configuration, IAppUserRepository userRepository)
+        // TIÊM REPOSITORY VÀO CONSTRUCTOR ĐỂ SỬ DỤNG DATABASE
+        public IndexModel(IAppUserRepository userRepository)
         {
-            _configuration = configuration;
             _userRepository = userRepository;
         }
 
+        public void OnGet()
+        {
+        }
+
+        // 1. HÀM TẠO LINK VÀ ĐIỀU HƯỚNG SANG VNPAY
         public IActionResult OnPostPayPremium()
         {
-            var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (!int.TryParse(userIdStr, out int userId))
-            {
-                return BadRequest("Không xác định được danh tính người dùng.");
-            }
-
-            var vnpayConfig = _configuration.GetSection("VnPay");
-            string baseUrl = vnpayConfig["BaseUrl"];
-            string tmnCode = vnpayConfig["TmnCode"];
-            string hashSecret = vnpayConfig["HashSecret"];
-            string returnUrl = vnpayConfig["ReturnUrl"];
+            string vnp_Url = "https://sandbox.vnpayment.vn/paymentv2/vpcpay.html";
+            string vnp_TmnCode = "QGEPANHQ";
+            string vnp_HashSecret = "INOS733PMZQZR8KO4EH5VG8L0TKPRQ66";
+            string vnp_ReturnUrl = "https://localhost:7030/Wallet?handler=VnpayReturn";
 
             var vnpay = new VnPayLibrary();
 
-            vnpay.AddRequestData("vnp_Version", vnpayConfig["Version"]);
-            vnpay.AddRequestData("vnp_Command", vnpayConfig["Command"]);
-            vnpay.AddRequestData("vnp_TmnCode", tmnCode);
-
-            long amount = 100000 * 100;
-            vnpay.AddRequestData("vnp_Amount", amount.ToString());
-
-            vnpay.AddRequestData("vnp_CurrCode", vnpayConfig["CurrCode"]);
-
-            string txnRef = $"{userId}_{DateTime.UtcNow.Ticks}";
-            vnpay.AddRequestData("vnp_TxnRef", txnRef);
-
-            vnpay.AddRequestData("vnp_OrderInfo", $"Nang cap tai khoan Premium cho user id {userId}");
-            vnpay.AddRequestData("vnp_OrderType", "other");
-            vnpay.AddRequestData("vnp_Locale", vnpayConfig["Locale"]);
-            vnpay.AddRequestData("vnp_ReturnUrl", returnUrl);
-
+            // SỬA TẠI ĐÂY: Xử lý ép IP về IPv4 chuẩn để không bị lỗi ký tự ":" trên localhost
             string ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString() ?? "127.0.0.1";
-            vnpay.AddRequestData("vnp_IpAddr", ipAddress);
-            vnpay.AddRequestData("vnp_CreateDate", DateTime.Now.ToString("yyyyMMddHHmmss"));
+            if (ipAddress == "::1")
+            {
+                ipAddress = "127.0.0.1";
+            }
 
-            string paymentUrl = vnpay.CreateRequestUrl(baseUrl, hashSecret);
+            vnpay.AddRequestData("vnp_Version", "2.1.0");
+            vnpay.AddRequestData("vnp_Command", "pay");
+            vnpay.AddRequestData("vnp_TmnCode", vnp_TmnCode);
+            vnpay.AddRequestData("vnp_Amount", (50000 * 100).ToString());
+            vnpay.AddRequestData("vnp_CreateDate", DateTime.Now.ToString("yyyyMMddHHmmss"));
+            vnpay.AddRequestData("vnp_CurrCode", "VND");
+            vnpay.AddRequestData("vnp_IpAddr", ipAddress); // 👈 Đã truyền IP sạch
+            vnpay.AddRequestData("vnp_Locale", "vn");
+
+            // SỬA TẠI ĐÂY: Viết liền không dấu/không cách để triệt tiêu hoàn toàn rủi ro lệch mã hóa URL
+            vnpay.AddRequestData("vnp_OrderInfo", "ThanhToanPremium");
+
+            vnpay.AddRequestData("vnp_OrderType", "other");
+            vnpay.AddRequestData("vnp_ReturnUrl", vnp_ReturnUrl);
+            vnpay.AddRequestData("vnp_TxnRef", DateTime.Now.Ticks.ToString());
+
+            string paymentUrl = vnpay.CreateRequestUrl(vnp_Url, vnp_HashSecret);
 
             return Redirect(paymentUrl);
         }
 
-        public async Task<IActionResult> OnGetVnPayReturnAsync()
+        // 2. HÀM ĐÓN KẾT QUẢ TRẢ VỀ TỪ VNPAY
+        public async Task<IActionResult> OnGetVnpayReturnAsync()
         {
-            var vnpayConfig = _configuration.GetSection("VnPay");
-            string hashSecret = vnpayConfig["HashSecret"];
-
+            string vnp_HashSecret = "INOS733PMZQZR8KO4EH5VG8L0TKPRQ66";
             var vnpay = new VnPayLibrary();
 
             foreach (var key in Request.Query.Keys)
             {
-                if (!string.IsNullOrEmpty(key) && key.StartsWith("vnp_"))
+                if (!string.IsNullOrEmpty(key) && key.StartsWith("vnp_") && key != "vnp_SecureHash")
                 {
-                    vnpay.AddResponseData(key, Request.Query[key]);
+                    vnpay.AddResponseData(key, Request.Query[key].ToString());
                 }
             }
 
             string vnp_SecureHash = Request.Query["vnp_SecureHash"];
-            string vnp_ResponseCode = Request.Query["vnp_ResponseCode"];
-            string vnp_TxnRef = Request.Query["vnp_TxnRef"];
+            bool checkSignature = vnpay.ValidateSignature(vnp_SecureHash, vnp_HashSecret);
 
-            bool isValidSignature = vnpay.ValidateSignature(vnp_SecureHash, hashSecret);
-
-            if (isValidSignature)
+            if (checkSignature)
             {
-                if (vnp_ResponseCode == "00")
+                string responseCode = vnpay.GetResponseData("vnp_ResponseCode");
+                if (responseCode == "00")
                 {
-                    var parts = vnp_TxnRef.Split('_');
-                    if (parts.Length > 0 && int.TryParse(parts[0], out int userId))
+                    // ─── TIẾN HÀNH NÂNG CẤP PREMIUM TRONG DATABASE ───
+                    var userIdStr = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                    if (int.TryParse(userIdStr, out int uId))
                     {
-                        var user = await _userRepository.GetByIdAsync(userId);
-                        if (user != null)
+                        var currentUser = await _userRepository.GetByIdAsync(uId);
+                        if (currentUser != null)
                         {
-                            user.Subscription = AppUser.SubscriptionType.Premium;
-                            _userRepository.Update(user);
-                            await _userRepository.SaveChangesAsync();
+                            // Đổi trạng thái gói thành Premium
+                            currentUser.Subscription = AppUser.SubscriptionType.Premium;
 
-                            TempData["Success"] = "Giao dịch qua VNPAY thành công! Tài khoản của bạn đã được nâng cấp lên Premium. 👑✨";
-                            return RedirectToPage("/Document/Browse");
+                            // 1. Đánh dấu thực thể thay đổi (Lưu tạm trên RAM)
+                            _userRepository.Update(currentUser);
+
+                            // 2. FIX CHÍ CHÓT: Lưu chính thức và ghi đè xuống Database vật lý
+                            await _userRepository.SaveChangesAsync(); // 👈 CHÈN THÊM DÒNG NÀY VÀO ĐÂY
                         }
                     }
-                    return BadRequest("Xử lý dữ liệu tài khoản sau thanh toán thất bại.");
+
+                    ViewData["Message"] = "🎉 Thanh toán thành công! Tài khoản của bạn đã được nâng cấp lên Premium. Bạn đã có quyền đọc toàn bộ tài liệu.";
                 }
                 else
                 {
-                    TempData["Error"] = $"Giao dịch không thành công. Mã lỗi từ VNPAY: {vnp_ResponseCode}";
-                    return RedirectToPage("/Document/Browse");
+                    ViewData["Message"] = $"❌ Giao dịch thất bại hoặc đã bị hủy bởi người dùng. (Mã lỗi: {responseCode})";
                 }
             }
+            else
+            {
+                ViewData["Message"] = "⚠️ Cảnh báo: Chữ ký phản hồi không hợp lệ! Dữ liệu có thể đã bị can thiệp.";
+            }
 
-            return BadRequest("Chữ ký xác thực VNPAY không hợp lệ (Sai HashSecret).");
+            return Page();
         }
     }
 }
-

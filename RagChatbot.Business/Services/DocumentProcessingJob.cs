@@ -1,4 +1,4 @@
-using RagChatbot.DataAccess.Interfaces;
+﻿using RagChatbot.DataAccess.Interfaces;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
@@ -10,6 +10,7 @@ using RagChatbot.DataAccess.EntityModels;
 using RagChatbot.Business.Interfaces;
 using RagChatbot.DataAccess.Repositories;
 using Pgvector;
+using Microsoft.AspNetCore.SignalR; 
 
 namespace RagChatbot.Business.Services
 {
@@ -17,11 +18,18 @@ namespace RagChatbot.Business.Services
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<DocumentProcessingJob> _logger;
+        // 🔥 2. Khai báo thêm biến HubContext toàn cục cho Class
+        private readonly IDocumentNotificationService _notificationService;
 
-        public DocumentProcessingJob(IServiceProvider serviceProvider, ILogger<DocumentProcessingJob> logger)
+        // 🔥 3. Inject HubContext thông qua Constructor
+        public DocumentProcessingJob(
+            IServiceProvider serviceProvider,
+            ILogger<DocumentProcessingJob> logger,
+            IDocumentNotificationService notificationService)
         {
             _serviceProvider = serviceProvider;
             _logger = logger;
+            _notificationService = notificationService;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -106,9 +114,8 @@ namespace RagChatbot.Business.Services
                 {
                     var currentText = pageList[i].Text ?? "";
                     var nextText = pageList[i + 1].Text ?? "";
-                    
+
                     if (string.IsNullOrWhiteSpace(currentText)) continue;
-                    // Find the last true sentence boundary while skipping periods inside numbers
                     int lastBoundary = -1;
                     for (int j = currentText.Length - 1; j >= 0; j--)
                     {
@@ -120,7 +127,6 @@ namespace RagChatbot.Business.Services
                         }
                         if (c == '.')
                         {
-                            // Skip this period if it resides between two digits (numeric separator)
                             bool prevIsDigit = j > 0 && char.IsDigit(currentText[j - 1]);
                             bool nextIsDigit = j < currentText.Length - 1 && char.IsDigit(currentText[j + 1]);
                             if (prevIsDigit && nextIsDigit)
@@ -131,12 +137,10 @@ namespace RagChatbot.Business.Services
                             break;
                         }
                     }
-                    
+
                     if (lastBoundary >= 0 && lastBoundary < currentText.Length - 1)
                     {
                         string carryOver = currentText.Substring(lastBoundary + 1);
-                        
-                        // Only carry over if it's a partial sentence (less than 500 chars)
                         if (carryOver.Length < 500)
                         {
                             pageList[i].Text = currentText.Substring(0, lastBoundary + 1).TrimEnd();
@@ -147,7 +151,7 @@ namespace RagChatbot.Business.Services
 
                 // Step 1: Extract all text chunks from all pages concurrently
                 var allChunksBag = new System.Collections.Concurrent.ConcurrentBag<(int PageNumber, int ChunkIndex, string Text)>();
-                
+
                 await Parallel.ForEachAsync(pageList, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount, CancellationToken = stoppingToken }, async (page, ct) =>
                 {
                     var chunks = await chunkingService.ChunkTextAsync(page.Text);
@@ -165,12 +169,15 @@ namespace RagChatbot.Business.Services
                     document.Status = "Failed_NoText";
                     docRepo.Update(document);
                     await docRepo.SaveChangesAsync();
+
+                    // 🌟 Bắn tín hiệu kể cả khi lỗi để giao diện tắt trạng thái loading (nếu có)
+                    await _notificationService.NotifyDocumentListChangedAsync();
                     return;
                 }
 
                 _logger.LogInformation($"Extracted {allChunks.Count} chunks. Starting batch embedding...");
 
-                // Step 2: Generate all embeddings in one batched call (100 chunks per HTTP request)
+                // Step 2: Generate all embeddings in one batched call
                 var chunkTexts = allChunks.Select(c => c.Text).ToList();
                 var embeddings = await aiService.GenerateEmbeddingsAsync(chunkTexts);
 
@@ -193,6 +200,9 @@ namespace RagChatbot.Business.Services
                 await docRepo.SaveChangesAsync();
                 await chunkRepo.SaveChangesAsync();
                 _logger.LogInformation($"Successfully indexed document: {document.FileName} ({allChunks.Count} chunks)");
+
+                // 🔥 4. BẮN TÍN HIỆU NGAY TẠI ĐÂY! Dữ liệu đã lưu xong, status đã là "Indexed"
+                await _notificationService.NotifyDocumentListChangedAsync();
             }
             catch (Exception ex)
             {
@@ -201,6 +211,9 @@ namespace RagChatbot.Business.Services
                 document.Status = "Failed";
                 docRepo.Update(document);
                 await docRepo.SaveChangesAsync();
+
+                // 🌟 Bắn tín hiệu khi lỗi để UI load lại và hiển thị badge "Thất bại"
+                await _notificationService.NotifyDocumentListChangedAsync();
             }
         }
     }

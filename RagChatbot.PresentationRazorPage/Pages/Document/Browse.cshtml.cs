@@ -19,7 +19,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
             _context = context;
         }
 
-        public System.Collections.Generic.List<RagChatbot.DataAccess.EntityModels.Document> Documents { get; set; }
+        public System.Collections.Generic.List<RagChatbot.DataAccess.EntityModels.Document> Documents { get; set; } = new List<RagChatbot.DataAccess.EntityModels.Document>();
 
         public async Task OnGetAsync(int? subjectId, string searchString)
         {

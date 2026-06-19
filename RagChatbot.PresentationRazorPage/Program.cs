@@ -99,6 +99,7 @@ builder.Services.AddScoped<IVectorSearchService, VectorSearchService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<IEmailService, SmtpEmailService>();
 builder.Services.AddSingleton<IEmailQueue, EmailQueue>();
+builder.Services.AddSingleton<IDocumentNotificationService, RagChatbot.PresentationRazorPage.Services.DocumentNotificationService>();
 
 // Register Background Service
 builder.Services.AddHostedService<DocumentProcessingJob>();

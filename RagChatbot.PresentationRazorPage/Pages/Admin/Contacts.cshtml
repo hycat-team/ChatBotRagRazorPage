@@ -2,7 +2,8 @@
 @model RagChatbot.PresentationRazorPage.Pages.Admin.ContactsModel
 @{
     ViewData["Title"] = "Quản lý Yêu cầu Hỗ trợ";
-    Layout = "~/Views/Shared/_Layout.cshtml";
+    // ĐÃ FIX: Chuyển đường dẫn Layout về đúng thư mục Pages
+    Layout = "~/Pages/Shared/_Layout.cshtml";
 }
 
 <div class="p-6 max-w-7xl mx-auto w-full space-y-6 overflow-y-auto h-full">
@@ -46,7 +47,6 @@
                         int index = 1;
                         foreach (var item in Model.ContactMessages)
                         {
-                            // Tạo biến hiển thị tên đầy đủ: Họ + Tên
                             var studentFullName = item.User != null ? $"{item.User.LastName} {item.User.FirstName}".Trim() : "Học sinh";
 
                             <tr class="hover:bg-slate-50/50 dark:hover:bg-slate-950/20 transition-colors">
@@ -82,7 +82,6 @@
                                     @item.CreatedAt.ToString("dd/MM/yyyy HH:mm")
                                 </td>
                                 <td class="p-4 text-center">
-                                    @* Đã sửa data-sender truyền thẳng tên đầy đủ vào để Modal JavaScript bắt được *@
                                     <div class="hidden ticket-stored-data"
                                          data-sender="@studentFullName"
                                          data-type="@((int)item.Type)"
@@ -178,4 +177,3 @@
         }
     </script>
 }
-

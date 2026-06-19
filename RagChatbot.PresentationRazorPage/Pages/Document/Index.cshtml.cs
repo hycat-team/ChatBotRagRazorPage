@@ -15,6 +15,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using RagChatbot.PresentationRazorPage.Hubs;
 
 namespace RagChatbot.PresentationRazorPage.Pages.Document
 {
@@ -27,6 +28,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
         private readonly Microsoft.AspNetCore.Hosting.IWebHostEnvironment _env;
         private readonly RagChatbot.DataAccess.Data.ApplicationDbContext _context;
         private readonly IAuditLogService _auditLogService;
+        private readonly IHubContext<RagChatbot.PresentationRazorPage.Hubs.AppNotificationHub> _hubContext;
 
         public IndexModel(
             IDocumentService documentService,
@@ -34,7 +36,8 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
             IChatService chatService,
             Microsoft.AspNetCore.Hosting.IWebHostEnvironment env,
             RagChatbot.DataAccess.Data.ApplicationDbContext context,
-            IAuditLogService auditLogService)
+            IAuditLogService auditLogService,
+            IHubContext<RagChatbot.PresentationRazorPage.Hubs.AppNotificationHub> hubContext) // 🔥 Đã sửa full namespace ở đây
         {
             _documentService = documentService;
             _subjectService = subjectService;
@@ -42,6 +45,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
             _env = env;
             _context = context;
             _auditLogService = auditLogService;
+            _hubContext = hubContext;
         }
 
         private int GetCurrentUserId()
@@ -72,7 +76,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
                 {
                     subjectsQuery = subjectsQuery.Where(s => s.DepartmentId == hodUser.DepartmentId);
                 }
-                else 
+                else
                 {
                     subjectsQuery = subjectsQuery.Where(s => false);
                 }
@@ -84,15 +88,15 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
 
             var subjects = subjectsQuery.ToList();
             var subjectIds = subjects.Select(s => s.Id).ToList();
-            
+
             var documents = new List<RagChatbot.Business.DTOs.DocumentDto>();
-            
+
             foreach (var subjectId in subjectIds)
             {
                 var docs = await _documentService.GetBySubjectIdAsync(subjectId);
                 documents.AddRange(docs);
             }
-            
+
             int? lastSelectedSubjectId = null;
             if (Request.Cookies.TryGetValue("LastUploadedSubjectId", out string cookieVal) && int.TryParse(cookieVal, out int lastId))
             {
@@ -108,16 +112,16 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
             return Page();
         }
 
+        // 🔥 Đã dọn dẹp tham số [FromServices] dư thừa của SignalR tại đây
         public async Task<IActionResult> OnPostUploadAsync(
             int subjectId,
             List<IFormFile> files,
             [FromServices] IGoogleDriveService driveService,
-            [FromServices] ILocalStorageService localStorage,
-            [FromServices] Microsoft.AspNetCore.SignalR.IHubContext<RagChatbot.PresentationRazorPage.Hubs.AppNotificationHub> hubContext)
+            [FromServices] ILocalStorageService localStorage)
         {
             var userId = GetCurrentUserId();
             var subject = await _subjectService.GetByIdAsync(subjectId);
-            
+
             if (subject == null)
             {
                 if (Request.Headers["Accept"].ToString().Contains("application/json")) return new JsonResult(new { success = false, message = "Invalid subject." });
@@ -196,7 +200,8 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
 
             Response.Cookies.Append("LastUploadedSubjectId", subjectId.ToString(), new CookieOptions { Expires = DateTimeOffset.UtcNow.AddDays(30) });
 
-            await hubContext.Clients.All.SendAsync("DocumentListChanged");
+            // 🔥 Chỉ bắn 1 lần duy nhất qua biến private chung của Class
+            await _hubContext.Clients.All.SendAsync("DocumentListChanged");
 
             if (failedFiles.Any())
             {
@@ -233,7 +238,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
                     var hodUser = _context.AppUsers.FirstOrDefault(u => u.Id == userId);
                     deptId = hodUser?.DepartmentId;
                 }
-                
+
                 await _subjectService.AddAsync(new RagChatbot.Business.DTOs.CreateSubjectDto { Code = code.Trim(), Name = name.Trim(), DepartmentId = deptId });
                 TempData["Success"] = "Subject created.";
             }
@@ -271,7 +276,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
             var document = await _documentService.GetByIdAsync(id);
 
             if (document == null) return new JsonResult(new { success = false, message = "Document not found." });
-            
+
             var isHod = User.IsInRole("HeadOfDepartment");
             bool canDelete = User.IsInRole("Admin");
             if (isHod && !canDelete)
@@ -290,6 +295,9 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
 
             await _documentService.DeleteAsync(id);
             await _auditLogService.LogAsync(userId, "Delete Document", id.ToString(), $"FileId: {id}");
+
+            await _hubContext.Clients.All.SendAsync("DocumentListChanged");
+
             return new JsonResult(new { success = true });
         }
 
@@ -299,7 +307,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
             var document = await _documentService.GetByIdAsync(id);
 
             if (document == null) return new JsonResult(new { success = false, message = "Document not found." });
-            
+
             bool canToggle = User.IsInRole("Admin");
             if (!canToggle && User.IsInRole("HeadOfDepartment"))
             {
@@ -318,6 +326,10 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
 
             document.IsActive = !document.IsActive;
             await _documentService.UpdateAsync(document);
+
+            // 🔥 Đã bổ sung SignalR bị thiếu ở đây
+            await _hubContext.Clients.All.SendAsync("DocumentListChanged");
+
             return new JsonResult(new { success = true, isActive = document.IsActive });
         }
 
@@ -327,7 +339,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
             var document = await _documentService.GetByIdAsync(id);
 
             if (document == null) return new JsonResult(new { success = false, message = "Document not found." });
-            
+
             var isHod = User.IsInRole("HeadOfDepartment");
             bool canRename = User.IsInRole("Admin");
             if (isHod && !canRename)
@@ -346,6 +358,9 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
 
             document.DisplayName = displayName.Trim();
             await _documentService.UpdateAsync(document);
+
+            await _hubContext.Clients.All.SendAsync("DocumentListChanged");
+
             return new JsonResult(new { success = true, displayName = document.DisplayName });
         }
 
@@ -354,11 +369,11 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
             var docs = await _documentService.GetBySubjectIdAsync(subjectId);
             var indexedDocs = docs
                 .Where(d => d.Status == "Indexed" && d.IsActive)
-                .Select(d => new { 
-                    d.Id, 
-                    FileName = string.IsNullOrWhiteSpace(d.DisplayName) ? d.FileName : d.DisplayName, 
-                    d.UploadedAt, 
-                    d.UploaderFullName 
+                .Select(d => new {
+                    d.Id,
+                    FileName = string.IsNullOrWhiteSpace(d.DisplayName) ? d.FileName : d.DisplayName,
+                    d.UploadedAt,
+                    d.UploaderFullName
                 })
                 .OrderBy(d => d.FileName)
                 .ToList();
@@ -374,7 +389,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
             {
                 return new JsonResult(new { success = false, message = "Tài liệu không tồn tại." });
             }
-            
+
             bool canView = document.UploaderId == userId || User.IsInRole("Admin");
             if (!canView && User.IsInRole("HeadOfDepartment"))
             {
@@ -392,10 +407,10 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
             }
 
             var chunks = await chunkRepository.FindAsync(c => c.DocumentId == id);
-            var result = chunks.Select(c => new { 
-                id = c.Id, 
-                content = c.Content, 
-                pageNumber = c.PageNumber 
+            var result = chunks.Select(c => new {
+                id = c.Id,
+                content = c.Content,
+                pageNumber = c.PageNumber
             }).OrderBy(c => c.pageNumber).ThenBy(c => c.id).ToList();
 
             return new JsonResult(new { success = true, chunks = result });
@@ -412,7 +427,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
                     if (user != null && user.Subscription == AppUser.SubscriptionType.Free)
                     {
                         TempData["Error"] = "Tính năng đọc tài liệu chỉ dành riêng cho tài khoản Premium. Vui lòng nâng cấp gói để mở khóa!";
-                        return RedirectToPage("/Document/Browse"); 
+                        return RedirectToPage("/Document/Browse");
                     }
                 }
             }
@@ -486,5 +501,3 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
         }
     }
 }
-
-

@@ -1,7 +1,8 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using RagChatbot.DataAccess.EntityModels;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -17,7 +18,8 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
             _context = context;
         }
 
-        public System.Collections.Generic.List<ContactMessage> ContactMessages { get; set; }
+        // Khởi tạo sẵn một danh sách rỗng để phòng trường hợp DB chưa kịp tải dữ liệu
+        public List<ContactMessage> ContactMessages { get; set; } = new List<ContactMessage>();
 
         public async Task OnGetAsync()
         {

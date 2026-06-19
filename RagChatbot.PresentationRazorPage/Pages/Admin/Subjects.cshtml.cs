@@ -151,34 +151,33 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
                 .Include(s => s.Department)
                 .ThenInclude(d => d.Users)
                 .FirstOrDefaultAsync(s => s.Id == id);
+
             if (subject == null)
             {
-                TempData["Error"] = "Môn học không tồn tại.";
-                return RedirectToPage();
+                return BadRequest("Môn học không tồn tại.");
             }
 
             var hasManager = subject.Department?.Users?.Any(u => u.Role == "HeadOfDepartment") ?? false;
             if (subject.IsActive && hasManager)
             {
-                TempData["Error"] = "Không thể vô hiệu hóa môn học đang có Trưởng bộ môn quản lý.";
-                return RedirectToPage();
+                // Trả về lỗi 400 kèm thông điệp trực tiếp cho AJAX bắt được
+                return BadRequest("Không thể vô hiệu hóa môn học đang có Trưởng bộ môn quản lý.");
             }
 
             if (!subject.IsActive && subject.Department != null && !subject.Department.IsActive)
             {
-                TempData["Error"] = "Không thể kích hoạt môn học vì bộ môn của nó đang bị vô hiệu hóa.";
-                return RedirectToPage();
+                return BadRequest("Không thể kích hoạt môn học vì bộ môn của nó đang bị vô hiệu hóa.");
             }
 
             subject.IsActive = !subject.IsActive;
             await _context.SaveChangesAsync();
-            
+
             var adminId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
             await _auditLogService.LogAsync(adminId, "Toggle Subject Active", subject.Id.ToString(), $"IsActive changed to {subject.IsActive}");
             await _hubContext.Clients.All.SendAsync("SubjectListChanged");
 
-            TempData["Success"] = subject.IsActive ? "Đã kích hoạt môn học." : "Đã vô hiệu hóa môn học.";
-            return RedirectToPage();
+            // Trả về kết quả thành công dưới dạng JSON
+            return new JsonResult(new { success = true, isActive = subject.IsActive });
         }
 
     }

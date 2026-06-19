@@ -4,30 +4,27 @@
 @using RagChatbot.DataAccess.EntityModels
 
 @{
-    ViewData["Title"] = "Dashboard Gi�m s�t H? th?ng";
+    ViewData["Title"] = "Dashboard Giám sát Hệ thống";
     var uploaders = ViewBag.Uploaders as List<AppUser> ?? new List<AppUser>();
     var departments = ViewBag.Departments as List<Department> ?? new List<Department>();
     int procCount = ViewBag.ProcessingCount ?? 0;
 
-    // --- �?C D? LI?U DOANH THU & PREMIUM T? CONTROLLER B?N QUA ---
-    long totalRevenue = ViewBag.TotalRevenue ?? 0; // �on v?: VND
-    int premiumCount = ViewBag.PremiumCount ?? 0;   // S? lu?ng user Premium
+    // --- ĐỌC DỮ LIỆU DOANH THU & PREMIUM TỪ CONTROLLER BẮN QUA ---
+    long totalRevenue = ViewBag.TotalRevenue ?? 0; // Đơn vị: VND
+    int premiumCount = ViewBag.PremiumCount ?? 0;   // Số lượng user Premium
 
-    // --- �?C �O?N M?I: S? LU?NG Y�U C?U H? TR? CH? X? L� ---
+    // --- ĐỌC ĐOẠN MỚI: SỐ LƯỢNG YÊU CẦU HỖ TRỢ CHỜ XỬ LÝ ---
     int pendingContactsCount = ViewBag.PendingContactsCount ?? 0;
 }
 
 <div class="flex-1 p-6 overflow-y-auto bg-slate-50 dark:bg-slate-950">
 
-    
-    
-
     <div class="mb-6 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6">
         <div>
             <h1 class="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <i class="fa-solid fa-chart-pie text-emerald-500"></i> T?ng quan H? th?ng Qu?n tr?
+                <i class="fa-solid fa-chart-pie text-emerald-500"></i> Tổng quan Hệ thống Quản trị
             </h1>
-            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Gi�m s�t ho?t d?ng d�ng g�p h?c li?u RAG k?t h?p theo d�i doanh thu g�i Premium th?c t?.</p>
+            <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">Giám sát hoạt động đóng góp học liệu RAG kết hợp theo dõi doanh thu gói Premium thực tế.</p>
         </div>
 
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4 w-full xl:w-auto shrink-0">
@@ -37,9 +34,9 @@
                     <i class="fa-solid fa-money-bill-wave text-base"></i>
                 </span>
                 <div>
-                    <p class="text-xs text-slate-400 dark:text-slate-500 font-medium">T?ng doanh thu</p>
+                    <p class="text-xs text-slate-400 dark:text-slate-500 font-medium">Tổng doanh thu</p>
                     <p class="text-base font-bold text-slate-800 dark:text-slate-200 mt-0.5">
-                        @totalRevenue.ToString("N0") <span class="text-xs font-normal text-slate-400">d</span>
+                        @totalRevenue.ToString("N0") <span class="text-xs font-normal text-slate-400">đ</span>
                     </p>
                 </div>
             </div>
@@ -49,7 +46,7 @@
                     <i class="fa-solid fa-crown text-sm"></i>
                 </span>
                 <div>
-                    <p class="text-xs text-slate-400 dark:text-slate-500 font-medium">G�i Premium</p>
+                    <p class="text-xs text-slate-400 dark:text-slate-500 font-medium">Gói Premium</p>
                     <p class="text-lg font-bold text-slate-800 dark:text-slate-200">@premiumCount <span class="text-xs font-normal text-slate-400">User</span></p>
                 </div>
             </div>
@@ -59,9 +56,9 @@
                     <i class="fa-solid fa-envelope-open-text text-sm"></i>
                 </span>
                 <div>
-                    <p class="text-xs text-slate-400 dark:text-slate-500 font-medium">Y�u c?u h? tr?</p>
+                    <p class="text-xs text-slate-400 dark:text-slate-500 font-medium">Yêu cầu hỗ trợ</p>
                     <p class="text-lg font-bold text-slate-800 dark:text-slate-200">
-                        @pendingContactsCount <span class="text-xs font-normal text-slate-400">Phi?u</span>
+                        @pendingContactsCount <span class="text-xs font-normal text-slate-400">Phiếu</span>
                     </p>
                 </div>
             </a>
@@ -71,7 +68,7 @@
                     <i class="fa-solid fa-file-circle-check text-base"></i>
                 </span>
                 <div>
-                    <p class="text-xs text-slate-400 dark:text-slate-500 font-medium">T�i li?u Active</p>
+                    <p class="text-xs text-slate-400 dark:text-slate-500 font-medium">Tài liệu Active</p>
                     <p class="text-lg font-bold text-slate-800 dark:text-slate-200">@ViewBag.ActiveCount</p>
                 </div>
             </div>
@@ -81,7 +78,7 @@
                     <i class="fa-solid fa-spinner @(procCount > 0 ? "fa-spin" : "") text-base"></i>
                 </span>
                 <div>
-                    <p class="text-xs text-slate-400 dark:text-slate-500 font-medium">�ang x? l� / Kh�a</p>
+                    <p class="text-xs text-slate-400 dark:text-slate-500 font-medium">Đang xử lý / Khóa</p>
                     <p class="text-lg font-bold text-slate-800 dark:text-slate-200">@procCount</p>
                 </div>
             </div>
@@ -92,14 +89,14 @@
     <div class="mb-4 flex flex-col sm:flex-row gap-3 bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
         <div class="flex-1 relative">
             <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-            <input type="text" id="searchKeyword" placeholder="T�m t�n h?c li?u, m�n h?c, email ngu?i dang..."
+            <input type="text" id="searchKeyword" placeholder="Tìm tên học liệu, môn học, email người đăng..."
                    class="w-full pl-9 pr-4 py-2 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-100 transition-colors" />
         </div>
         <div class="w-full sm:w-64 relative">
             <i class="fa-solid fa-filter absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
             <select id="filterDept"
                     class="w-full pl-9 pr-8 py-2 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-indigo-500 text-slate-800 dark:text-slate-100 transition-colors appearance-none cursor-pointer">
-                <option value="all">T?t c? b? m�n</option>
+                <option value="all">Tất cả bộ môn</option>
                 @foreach (var d in departments)
                 {
                     <option value="@d.Id">@d.Name</option>
@@ -111,20 +108,20 @@
 
     <div class="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
         <div class="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
-            <h3 class="font-semibold text-slate-800 dark:text-slate-200">Kho H?c li?u To�n tru?ng</h3>
-            <span class="text-xs text-slate-400">Danh s�ch t�i li?u th?i gian th?c</span>
+            <h3 class="font-semibold text-slate-800 dark:text-slate-200">Kho Học liệu Toàn trường</h3>
+            <span class="text-xs text-slate-400">Danh sách tài liệu thời gian thực</span>
         </div>
 
         <div class="overflow-x-auto">
             <table class="w-full text-left border-collapse">
                 <thead>
                     <tr class="border-b border-slate-200 dark:border-slate-800 text-slate-400 text-xs font-semibold uppercase bg-slate-50/50 dark:bg-slate-900/50">
-                        <th class="p-4">T�n h?c li?u / File</th>
-                        <th class="p-4">M�n h?c</th>
-                        <th class="p-4">B? m�n qu?n l�</th>
-                        <th class="p-4">Ngu?i dang t?i</th>
-                        <th class="p-4">Tr?ng th�i RAG</th>
-                        <th class="p-4 text-center">Thao t�c qu?n tr?</th>
+                        <th class="p-4">Tên học liệu / File</th>
+                        <th class="p-4">Môn học</th>
+                        <th class="p-4">Bộ môn quản lý</th>
+                        <th class="p-4">Người đăng tải</th>
+                        <th class="p-4">Trạng thái RAG</th>
+                        <th class="p-4 text-center">Thao tác quản trị</th>
                     </tr>
                 </thead>
                 <tbody id="documentTableBody" class="divide-y divide-slate-200 dark:divide-slate-800 text-sm text-slate-600 dark:text-slate-300">
@@ -158,7 +155,7 @@
                                 </td>
                                 <td class="p-4">
                                     <span class="font-medium text-slate-700 dark:text-slate-300">
-                                        @(dept != null ? dept.Name : "Chua ph�n b? m�n")
+                                        @(dept != null ? dept.Name : "Chưa phân bộ môn")
                                     </span>
                                 </td>
                                 <td class="p-4 font-medium text-slate-500 dark:text-slate-400">
@@ -179,10 +176,10 @@
                                     }
                                 </td>
                                 <td class="p-4 text-center">
-                                    <form asp-page="/Admin/Dashboard" asp-page-handler="DeleteDocumentFromDashboard" method="post" onsubmit="return confirm('B?n c� ch?c ch?n mu?n g? b? ho�n to�n t�i li?u n�y kh?i kho h?c li?u RAG kh�ng?');" class="inline">
+                                    <form asp-page="/Admin/Dashboard" asp-page-handler="DeleteDocumentFromDashboard" method="post" onsubmit="return confirm('Bạn có chắc chắn muốn gỡ bỏ hoàn toàn tài liệu này khỏi kho học liệu RAG không?');" class="inline">
                                         <input type="hidden" name="id" value="@item.Id" />
                                         <button type="submit" class="text-xs font-medium text-red-500 hover:text-white border border-red-200 dark:border-red-900/50 px-2.5 py-1.5 rounded-lg hover:bg-red-500 dark:hover:bg-red-600 transition-colors">
-                                            <i class="fa-solid fa-trash-can mr-1"></i> G? h?c li?u
+                                            <i class="fa-solid fa-trash-can mr-1"></i> Gỡ học liệu
                                         </button>
                                     </form>
                                 </td>
@@ -193,13 +190,13 @@
                     {
                         <tr>
                             <td colspan="6" class="p-8 text-center text-slate-400 italic">
-                                Chua c� gi?ng vi�n hay tru?ng b? m�n n�o t?i h?c li?u l�n h? th?ng.
+                                Chưa có giảng viên hay trưởng bộ môn nào tải học liệu lên hệ thống.
                             </td>
                         </tr>
                     }
                     <tr id="noResultsRow" style="display: none;">
                         <td colspan="6" class="p-8 text-center text-slate-400 italic">
-                            Kh�ng t�m th?y h?c li?u n�o ph� h?p v?i b? l?c hi?n t?i.
+                            Không tìm thấy học liệu nào phù hợp với bộ lọc hiện tại.
                         </td>
                     </tr>
                 </tbody>
@@ -246,6 +243,3 @@
         selectDept.addEventListener("change", performFilter);
     });
 </script>
-
-
-

@@ -37,7 +37,7 @@ namespace RagChatbot.PresentationRazorPage.Helpers
             {
                 if (!string.IsNullOrEmpty(kv.Value))
                 {
-                    data.Append(WebUtility.UrlEncode(kv.Key) + "=" + WebUtility.UrlEncode(kv.Value) + "&");
+                    data.Append(WebUtility.UrlEncode(kv.Key) + "=" + WebUtility.UrlEncode(kv.Value).Replace("+", "%20") + "&");
                 }
             }
 
@@ -54,7 +54,7 @@ namespace RagChatbot.PresentationRazorPage.Helpers
             {
                 if (!kv.Key.StartsWith("vnp_SecureHash"))
                 {
-                    data.Append(WebUtility.UrlEncode(kv.Key) + "=" + WebUtility.UrlEncode(kv.Value) + "&");
+                    data.Append(WebUtility.UrlEncode(kv.Key) + "=" + WebUtility.UrlEncode(kv.Value).Replace("+", "%20") + "&");
                 }
             }
 
