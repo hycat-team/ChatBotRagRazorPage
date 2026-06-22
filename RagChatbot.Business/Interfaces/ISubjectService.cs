@@ -14,5 +14,7 @@ namespace RagChatbot.Business.Interfaces
         Task UpdateAsync(SubjectDto subjectDto);
         Task DeleteAsync(int id);
         Task<bool> ExistsByCodeAsync(string code, int? excludeId = null);
+
+        Task ToggleStatusAsync(int id);
     }
 }

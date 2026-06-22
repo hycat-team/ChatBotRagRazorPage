@@ -81,7 +81,6 @@
                                 <p class="text-sm font-bold text-slate-700 dark:text-slate-100 subject-name-display">@s.Name</p>
                                 <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">@s.Code - @s.Documents.Count() tài liệu</p>
                             </div>
-
                         </div>
                     }
                 </div>
@@ -151,6 +150,7 @@
                                             {
                                                 <span class="px-2.5 py-1 rounded-full bg-rose-100 dark:bg-rose-500/20 text-rose-800 dark:text-rose-300 text-xs font-bold border border-rose-200 dark:border-rose-500/30">Đã tắt</span>
                                             }
+
                                             @if (doc.Status == "Indexed")
                                             {
                                                 if (doc.DocumentChunks.Count == 0)
@@ -159,7 +159,7 @@
                                                 }
                                                 else
                                                 {
-                                                    <button onclick="viewChunks(@doc.Id, '@doc.FileName.Replace("'", "\\'")')" class="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-bold border border-emerald-200 dark:border-emerald-500/20 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-all cursor-pointer">✔️ Indexed - @doc.DocumentChunks.Count chunks</button>
+                                                    <button data-id="@doc.Id" data-filename="@doc.FileName" onclick="viewChunks(this)" class="px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-bold border border-emerald-200 dark:border-emerald-500/20 hover:bg-emerald-100 dark:hover:bg-emerald-500/20 transition-all cursor-pointer">✔️ Indexed - @doc.DocumentChunks.Count chunks</button>
                                                 }
                                             }
                                             else if (doc.Status == "Processing")
@@ -189,7 +189,7 @@
                                             }
                                             @if (canToggle)
                                             {
-                                                <button onclick="toggleDocActive(@doc.Id, @(doc.IsActive.ToString().ToLower()))"
+                                                <button data-id="@doc.Id" onclick="toggleDocActive(this)"
                                                         class="px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-400 dark:text-slate-500 hover:text-amber-500 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-500/10 border border-transparent transition-all"
                                                         title="@(doc.IsActive ? "Tắt tài liệu" : "Bật tài liệu")">
                                                     <i class="fa-solid @(doc.IsActive ? "fa-toggle-on text-emerald-500" : "fa-toggle-off text-slate-400") text-base"></i>
@@ -197,12 +197,12 @@
                                             }
                                             @if (canDeleteRename)
                                             {
-                                                <button onclick="inlineRenameDocument(@doc.Id, '@(string.IsNullOrWhiteSpace(doc.DisplayName) ? doc.FileName.Replace("'", "\\'") : doc.DisplayName.Replace("'", "\\'"))')"
+                                                <button data-id="@doc.Id" data-currentname="@(string.IsNullOrWhiteSpace(doc.DisplayName) ? doc.FileName : doc.DisplayName)" onclick="inlineRenameDocument(this)"
                                                         class="px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-400 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 border border-transparent transition-all"
                                                         title="Đổi tên hiển thị">
                                                     <i class="fa-solid fa-pen"></i>
                                                 </button>
-                                                <button onclick="deleteDocument(@doc.Id, '@doc.FileName.Replace("'", "\\'")')"
+                                                <button data-id="@doc.Id" data-filename="@doc.FileName" onclick="deleteDocument(this)"
                                                         class="px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 border border-transparent hover:border-red-200 dark:hover:border-red-500/20 transition-all">
                                                     <i class="fa-solid fa-trash text-[10px]"></i>
                                                 </button>
@@ -236,6 +236,8 @@
 </div>
 
 @section Scripts {
+    <script src="~/lib/microsoft/signalr/dist/browser/signalr.js"></script>
+
     <script>
         function updateFileName(input) {
             if (input.files && input.files.length > 1) {
@@ -264,7 +266,11 @@
             }, 150);
         }
 
-        async function viewChunks(docId, fileName) {
+        // Đọc data từ element nút bấm nhận được
+        async function viewChunks(btn) {
+            const docId = btn.dataset.id;
+            const fileName = btn.dataset.filename;
+
             const contentDiv = document.getElementById('chunkModalContent');
             contentDiv.innerHTML = `
                 <div class="flex flex-col items-center justify-center py-12">
@@ -312,23 +318,15 @@
         }
 
         function escapeHtml(text) {
-            const map = {
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#039;'
-            };
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
             return text.replace(/[&<>"']/g, m => map[m]);
         }
 
-        // -- Subject rename inline function removed --------------------
+        function deleteDocument(btn) {
+            const id = btn.dataset.id;
+            const fileName = btn.dataset.filename;
 
-
-
-        // -- Delete document ------------------------------------------
-        function deleteDocument(id, fileName) {
-            showConfirmModal('Xóa tài liệu', `Xóa "${fileName}" và toàn bộ vector chunks?`, async () => {
+            const executeDelete = async () => {
                 const res = await fetch('/Document/Index?handler=DeleteDocument', {
                     method: 'POST',
                     headers: {
@@ -339,11 +337,22 @@
                 });
                 const data = await res.json();
                 if (data.success) document.getElementById(`doc-row-${id}`)?.remove();
-            });
+            };
+
+            // Cơ chế kiểm tra an toàn nếu bạn chưa tạo custom confirm modal giao diện
+            if (typeof showConfirmModal === 'function') {
+                showConfirmModal('Xóa tài liệu', `Xóa "${fileName}" và toàn bộ vector chunks?`, executeDelete);
+            } else {
+                if (confirm(`Bạn chắc chắn muốn xóa "${fileName}" và toàn bộ vector chunks?`)) {
+                    executeDelete();
+                }
+            }
         }
 
-        // -- Rename document inline -----------------------------------
-        function inlineRenameDocument(id, currentName) {
+        function inlineRenameDocument(btn) {
+            const id = btn.dataset.id;
+            const currentName = btn.dataset.currentname;
+
             const row = document.getElementById(`doc-row-${id}`);
             const display = row.querySelector('.doc-name-display');
             const input = document.createElement('input');
@@ -369,15 +378,22 @@
                 const data = await res.json();
                 span.textContent = data.success ? data.displayName : currentName;
                 input.replaceWith(span);
-                // Refresh to get updated edit handler params
                 if (data.success) window.location.reload();
             };
             input.addEventListener('blur', save);
-            input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } if (e.key === 'Escape') { const s = document.createElement('span'); s.className = 'font-medium text-gray-800 dark:text-slate-100 max-w-xs truncate doc-name-display'; s.textContent = currentName; input.replaceWith(s); } });
+            input.addEventListener('keydown', e => {
+                if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+                if (e.key === 'Escape') {
+                    const s = document.createElement('span');
+                    s.className = 'font-medium text-gray-800 dark:text-slate-100 max-w-xs truncate doc-name-display';
+                    s.textContent = currentName;
+                    input.replaceWith(s);
+                }
+            });
         }
 
-        // -- Toggle document active -----------------------------------
-        async function toggleDocActive(id, currentState) {
+        async function toggleDocActive(btn) {
+            const id = btn.dataset.id;
             const res = await fetch('/Document/Index?handler=ToggleDocumentActive', {
                 method: 'POST',
                 headers: {
@@ -394,7 +410,6 @@
             }
         }
 
-        // 👑 1. ĐÃ BỔ SUNG: Hàm AJAX xử lý tải tài liệu ngầm mượt mà
         async function uploadDocumentAjax(e, form) {
             e.preventDefault();
             const btn = document.getElementById('btnUpload');
@@ -406,9 +421,7 @@
                 const formData = new FormData(form);
                 const res = await fetch('/Document/Index?handler=Upload', {
                     method: 'POST',
-                    headers: {
-                        'Accept': 'application/json'
-                    },
+                    headers: { 'Accept': 'application/json' },
                     body: formData
                 });
                 const data = await res.json();
@@ -416,6 +429,7 @@
                 if (data.success) {
                     form.reset();
                     document.getElementById('fileNameLabel').textContent = 'Nhấn để chọn file...';
+                    console.log("✈️ Upload thành công! Đang chờ SignalR đẩy dữ liệu mới về...");
                 } else {
                     alert("Lỗi: " + data.message);
                 }
@@ -428,12 +442,14 @@
             }
         }
 
-        // 👑 2. ĐÃ BỔ SUNG: Cấu hình bắt tín hiệu SignalR đồng bộ Realtime không reload
+        // Khởi tạo SignalR Realtime Hub
         const connection = new signalR.HubConnectionBuilder()
             .withUrl("/appNotificationHub")
+            .withAutomaticReconnect()
             .build();
 
         connection.on("DocumentListChanged", async () => {
+            console.log("🔔 SignalR: Nhận thông báo cập nhật dữ liệu!");
             try {
                 const res = await fetch(window.location.href);
                 const html = await res.text();
@@ -444,13 +460,18 @@
                 const newTable = doc.getElementById('document-list-body');
                 if (currentTable && newTable) {
                     currentTable.innerHTML = newTable.innerHTML;
-                    console.log("Danh sách tài liệu đã được tự động cập nhật ngầm!");
+                    console.log("✅ Đồng bộ hóa danh sách ngầm thành công!");
+                } else {
+                    window.location.reload();
                 }
             } catch (err) {
-                console.error("Lỗi cập nhật bảng ngầm:", err);
+                console.error("Lỗi cập nhật DOM, kích hoạt cơ chế F5 dự phòng:", err);
+                window.location.reload();
             }
         });
 
-        connection.start().catch(err => console.error(err.toString()));
+        connection.start()
+            .then(() => console.log("🚀 Đồng bộ thời gian thực (SignalR) hoạt động bình thường!"))
+            .catch(err => console.error("❌ SignalR Hub lỗi kết nối: ", err.toString()));
     </script>
 }
