@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using RagChatbot.Business.Interfaces;
@@ -22,7 +22,8 @@ namespace RagChatbot.Business.Services
         {
             var entity = await _subjectRepository.Query()
                 .Include(s => s.Documents)
-                .Include(s => s.Department).ThenInclude(d => d.Users)
+                .Include(s => s.Department)
+                    .ThenInclude(d => d.Users) // SỬA LỖI: Nạp thêm danh sách User của Bộ môn
                 .FirstOrDefaultAsync(s => s.Id == id);
             return entity.ToDto();
         }
@@ -31,7 +32,8 @@ namespace RagChatbot.Business.Services
         {
             var entities = await _subjectRepository.Query()
                 .Include(s => s.Documents)
-                .Include(s => s.Department).ThenInclude(d => d.Users)
+                .Include(s => s.Department)
+                    .ThenInclude(d => d.Users)
                 .Where(s => s.Department != null && s.Department.Users.Any(u => u.Id == userId))
                 .ToListAsync();
             return entities.Select(s => s.ToDto()!).ToList();
@@ -56,9 +58,21 @@ namespace RagChatbot.Business.Services
             return entities.Select(s => s.ToDto()!).ToList();
         }
 
+        public async Task ToggleStatusAsync(int id)
+        {
+            var entity = await _subjectRepository.GetByIdAsync(id);
+            if (entity != null)
+            {
+                entity.IsActive = !entity.IsActive; // Đảo trạng thái true -> false hoặc false -> true
+                _subjectRepository.Update(entity);
+                await _subjectRepository.SaveChangesAsync();
+            }
+        }
+
         public async Task<SubjectDto> AddAsync(CreateSubjectDto dto)
         {
             var entity = dto.ToEntity();
+            entity.IsActive = true; // Đảm bảo mặc định khi tạo mới môn học sẽ ở trạng thái "Đang mở"
             await _subjectRepository.AddAsync(entity);
             await _subjectRepository.SaveChangesAsync();
             return entity.ToDto()!;

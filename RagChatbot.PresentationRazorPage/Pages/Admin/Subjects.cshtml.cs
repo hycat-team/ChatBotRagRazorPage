@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.SignalR;
 using RagChatbot.PresentationRazorPage.Hubs;
 using RagChatbot.Business.Interfaces;
@@ -162,6 +161,30 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
             await _hubContext.Clients.All.SendAsync("SubjectListChanged");
 
             TempData["Success"] = "Cập nhật môn học thành công.";
+            return RedirectToPage();
+        }
+
+
+        public async Task<IActionResult> OnPostToggleStatusAsync(int id)
+        {
+            var subject = await _subjectService.GetByIdAsync(id);
+            if (subject == null)
+            {
+                TempData["Error"] = "Môn học không tồn tại.";
+                return RedirectToPage();
+            }
+
+            // Thực hiện đảo trạng thái ẩn/hiện
+            await _subjectService.ToggleStatusAsync(id);
+
+            // Ghi log hệ thống và đồng bộ SignalR
+            var adminId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
+            string logAction = subject.IsActive ? "Ẩn môn học" : "Kích hoạt lại môn học";
+            await _auditLogService.LogAsync(adminId, logAction, id.ToString(), $"Môn học: {subject.Name} ({subject.Code})");
+
+            await _hubContext.Clients.All.SendAsync("SubjectListChanged");
+
+            TempData["Success"] = $"{(subject.IsActive ? "Ẩn" : "Kích hoạt")} môn học thành công.";
             return RedirectToPage();
         }
 
