@@ -2,10 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using RagChatbot.Business.Interfaces;
-using System;
-using System.Linq;
 using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace RagChatbot.PresentationRazorPage.Pages.Admin
 {
@@ -64,7 +61,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
 
                     var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
                     await _auditLogService.LogAsync(adminId, "Create HOD", user.Id.ToString(), $"Email: {email}, Dept: {departmentId}");
-                    
+
                     var emailQueue = HttpContext.RequestServices.GetService(typeof(RagChatbot.Business.Interfaces.IEmailQueue)) as RagChatbot.Business.Interfaces.IEmailQueue;
                     if (emailQueue != null)
                     {
@@ -129,10 +126,10 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
             if (user != null && user.Role == "HeadOfDepartment" && user.DepartmentId.HasValue)
             {
                 await _userService.EndHodTermAsync(id);
-                
+
                 var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
                 await _auditLogService.LogAsync(adminId, "End HOD Term", id.ToString(), $"User: {user.Email}");
-                
+
                 TempData["Success"] = "Đã kết thúc nhiệm kỳ Trưởng bộ môn.";
             }
             else
@@ -146,7 +143,8 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
         public async Task<IActionResult> OnGetHodTermHistoryAsync(int userId)
         {
             var result = await _userService.GetHodTermHistoryAsync(userId);
-            return new JsonResult(result.Select(t => new {
+            return new JsonResult(result.Select(t => new
+            {
                 departmentName = t.DepartmentName,
                 startAt = t.StartAt,
                 endAt = t.EndAt
@@ -156,7 +154,8 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
         public async Task<IActionResult> OnGetDepartmentTermHistoryAsync(int deptId)
         {
             var result = await _userService.GetDepartmentTermHistoryAsync(deptId);
-            return new JsonResult(result.Select(t => new {
+            return new JsonResult(result.Select(t => new
+            {
                 hodName = t.HodName,
                 startAt = t.StartAt,
                 endAt = t.EndAt

@@ -1,5 +1,4 @@
 using RagChatbot.DataAccess.EntityModels;
-using System.Threading.Tasks;
 
 namespace RagChatbot.Business.Interfaces
 {

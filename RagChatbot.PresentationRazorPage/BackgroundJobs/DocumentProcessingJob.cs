@@ -1,12 +1,6 @@
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.DependencyInjection;
 using RagChatbot.Business.Interfaces;
 using Microsoft.AspNetCore.SignalR;
 using RagChatbot.PresentationRazorPage.Hubs;
-using System.Threading.Tasks;
-using System.Threading;
-using System;
 
 namespace RagChatbot.PresentationRazorPage.BackgroundJobs
 {

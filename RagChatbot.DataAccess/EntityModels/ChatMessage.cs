@@ -1,5 +1,3 @@
-using System;
-
 namespace RagChatbot.DataAccess.EntityModels
 {
     public class ChatMessage

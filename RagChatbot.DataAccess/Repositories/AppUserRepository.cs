@@ -2,7 +2,6 @@ using Microsoft.EntityFrameworkCore;
 using RagChatbot.DataAccess.Data;
 using RagChatbot.DataAccess.EntityModels;
 using RagChatbot.DataAccess.Interfaces;
-using System.Threading.Tasks;
 
 namespace RagChatbot.DataAccess.Repositories
 {

@@ -1,9 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using System.Linq;
 using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace RagChatbot.PresentationRazorPage.Pages.Document
 {

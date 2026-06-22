@@ -1,5 +1,3 @@
-using System;
-
 namespace RagChatbot.Business.DTOs
 {
     public class HodTermDto

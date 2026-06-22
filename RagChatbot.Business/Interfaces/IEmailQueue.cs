@@ -1,6 +1,3 @@
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace RagChatbot.Business.Interfaces
 {
     public record EmailMessage(string ToEmail, string Subject, string Body);

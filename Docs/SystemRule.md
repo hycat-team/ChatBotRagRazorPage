@@ -115,4 +115,18 @@
 | 🟡 TRUNG BÌNH | Hệ thống ghi nhận Audit Log toàn diện (Section 5.1) | Thiết lập hệ thống ghi nhật ký không thể sửa xóa cho mọi hành động cấu trúc của Admin và Head of Department. |
 | 🟡 TRUNG BÌNH | Bộ lọc UI Học sinh & Citation định dạng (5.3, 3.4) | Xây dựng giao diện cho Học sinh tích chọn bộ lọc dựa trên Tên hiển thị học liệu; hiển thị citation chuẩn hóa giấu tên file gốc. |
 | 🟢 THẤP | Rate Limiting & Quota Token theo ngày (Section 6.1) | Tích hợp bộ đếm câu hỏi tự động refresh theo chu kỳ ngày để chống spam tài nguyên API. |
-| 🟢 THẤP | Cron Job dọn dẹp và Lưu trữ Lịch sử chat (BR-07) | Cài đặt cron tác vụ tự động quét dữ liệu định kỳ, chuyển các session chat quá 6 tháng vào phân vùng Archived Log. |
+| 🟢 THẤP | Cron Job dọn dẹp và Lưu trữ Lịch sử chat (BR-07) | Cài đặt cron tác vụ tự động quét dữ liệu định kỳ, chuyển các session chat quá 6 tháng vào phân vùng Archived Log. |# Danh sách Tài khoản Hệ thống
+
+Dưới đây là các tài khoản mặc định (Seed Data) đã được khởi tạo sẵn trong cơ sở dữ liệu của dự án. 
+
+| STT | Vai trò (Role) | Email | Mật khẩu mặc định | Ghi chú |
+| :--- | :--- | :--- | :--- | :--- |
+| 1 | **Admin** | `admin@gmail.com` | `@Admin1` | Có toàn quyền quản trị hệ thống. |
+| 2 | **Trưởng Bộ môn** | `hod@gmail.com` | `@Hod1` | Được tự động gán vào bộ môn **Công nghệ Thông tin**. |
+| 4 | **Học sinh 1** | `student1@gmail.com` | `@Cus1` | Tài khoản học sinh để hỏi đáp tài liệu. |
+| 5 | **Học sinh 2** | `student2@gmail.com` | `@Cus2` | Tài khoản học sinh để hỏi đáp tài liệu. |
+
+> [!NOTE]
+> Mọi tài khoản mới được tạo ra từ màn hình của Admin thông qua chức năng **Tạo Tài khoản (bằng file)** hoặc **Tạo HOD** thì đều có chung mật khẩu mặc định là: `123456`.
+>
+> Khi ấn "Đặt lại mật khẩu" trong trang quản trị, tài khoản đó cũng sẽ quay về mật khẩu mặc định: `123456`.

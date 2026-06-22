@@ -2,8 +2,6 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using RagChatbot.Business.Interfaces;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace RagChatbot.PresentationRazorPage.Pages.Hod
 {

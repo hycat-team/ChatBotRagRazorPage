@@ -41,7 +41,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Wallet
             vnpay.AddRequestData("vnp_Amount", (100000 * 100).ToString());
             vnpay.AddRequestData("vnp_CreateDate", DateTime.Now.ToString("yyyyMMddHHmmss"));
             vnpay.AddRequestData("vnp_CurrCode", "VND");
-            vnpay.AddRequestData("vnp_IpAddr", ipAddress); // 👈 Đã truyền IP sạch
+            vnpay.AddRequestData("vnp_IpAddr", ipAddress);
             vnpay.AddRequestData("vnp_Locale", "vn");
 
             // SỬA TẠI ĐÂY: Viết liền không dấu/không cách để triệt tiêu hoàn toàn rủi ro lệch mã hóa URL

@@ -1,4 +1,3 @@
-using System;
 using Pgvector;
 namespace RagChatbot.DataAccess.EntityModels
 {

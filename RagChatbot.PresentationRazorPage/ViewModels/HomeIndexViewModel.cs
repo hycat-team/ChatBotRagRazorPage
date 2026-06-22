@@ -1,5 +1,4 @@
 using RagChatbot.Business.DTOs;
-using System.Collections.Generic;
 
 namespace RagChatbot.PresentationRazorPage.ViewModels
 {

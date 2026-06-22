@@ -53,32 +53,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
             return RedirectToPage();
         }
 
-        public async Task<IActionResult> OnPostDeleteDepartmentAsync(int id)
-        {
-            var dept = await _departmentService.GetByIdAsync(id);
-            if (dept != null)
-            {
-                // Check if any HOD is currently managing this department
-                bool isManaged = await _userService.HasDepartmentHodAsync(id);
-                if (isManaged)
-                {
-                    TempData["Error"] = "Không thể xóa bộ môn này vì đang có Trưởng bộ môn quản lý.";
-                    return RedirectToPage();
-                }
 
-                await _departmentService.DeleteDepartmentAsync(id);
-
-                var adminId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
-                await _auditLogService.LogAsync(adminId, "Delete Department", id.ToString(), $"Name: {dept.Name}");
-
-                TempData["Success"] = "Xóa bộ môn thành công.";
-            }
-            else
-            {
-                TempData["Error"] = "Không tìm thấy bộ môn.";
-            }
-            return RedirectToPage();
-        }
 
         public async Task<IActionResult> OnPostToggleActiveAsync(int id)
         {

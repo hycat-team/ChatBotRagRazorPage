@@ -1,11 +1,8 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using RagChatbot.Business.Services;
 using RagChatbot.Business.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
-using System.Threading.Tasks;
-using System.Collections.Generic;
 using RagChatbot.PresentationRazorPage.ViewModels;
 
 namespace RagChatbot.PresentationRazorPage.Pages

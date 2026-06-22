@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace RagChatbot.Business.DTOs
+﻿namespace RagChatbot.Business.DTOs
 {
     public class ContactMessageDto
     {

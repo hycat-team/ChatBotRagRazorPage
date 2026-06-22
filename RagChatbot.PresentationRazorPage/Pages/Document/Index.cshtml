@@ -38,7 +38,14 @@
                                     foreach (var s in Model.ViewModel.Subjects)
                                     {
                                         bool isSelected = Model.ViewModel.LastSelectedSubjectId.HasValue && Model.ViewModel.LastSelectedSubjectId.Value == s.Id;
-                                        <option value="@s.Id" selected="@isSelected">@s.Code - @s.Name</option>
+                                        if (!s.IsActive)
+                                        {
+                                            <option value="@s.Id" selected="@isSelected" disabled class="text-slate-400 italic">@s.Code - @s.Name (Đang tắt)</option>
+                                        }
+                                        else
+                                        {
+                                            <option value="@s.Id" selected="@isSelected">@s.Code - @s.Name</option>
+                                        }
                                     }
                                 }
                             </select>
@@ -79,7 +86,13 @@
                                 <i class="fa-solid fa-book text-emerald-600 dark:text-emerald-400 text-xs"></i>
                             </span>
                             <div class="flex-1 min-w-0">
-                                <p class="text-sm font-bold text-slate-700 dark:text-slate-100 subject-name-display">@s.Name</p>
+                                <div class="flex items-center gap-2">
+                                    <p class="text-sm font-bold text-slate-700 dark:text-slate-100 subject-name-display truncate">@s.Name</p>
+                                    @if (!s.IsActive)
+                                    {
+                                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-600 dark:bg-rose-500/20 dark:text-rose-400 whitespace-nowrap">Đang tắt</span>
+                                    }
+                                </div>
                                 <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">@s.Code - @s.Documents.Count() tài liệu</p>
                             </div>
                         </div>
@@ -412,6 +425,56 @@
             }
         }
 
+        function showToast(type, message) {
+            let container = document.getElementById('toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toast-container';
+                container.className = 'fixed bottom-6 right-6 z-[9999] flex flex-col gap-3 pointer-events-none';
+                document.body.appendChild(container);
+            }
+            
+            const isError = type === 'error';
+            const iconColor = isError ? 'red' : 'emerald';
+            const title = isError ? 'Lỗi' : 'Thành công';
+            const icon = isError ? 'fa-exclamation' : 'fa-check';
+            
+            const toastHtml = `
+                <div class="toast-item pointer-events-auto flex items-start gap-3 p-4 bg-white dark:bg-slate-800 border border-${iconColor}-200 dark:border-${iconColor}-500/20 shadow-xl rounded-xl min-w-[300px]" style="animation: slideInRight 0.3s ease-out forwards;">
+                    <div class="w-8 h-8 rounded-full bg-${iconColor}-100 dark:bg-${iconColor}-500/20 flex items-center justify-center shrink-0">
+                        <i class="fa-solid ${icon} text-${iconColor}-600 dark:text-${iconColor}-400"></i>
+                    </div>
+                    <div class="flex-1 pt-1.5">
+                        <h4 class="text-sm font-bold text-gray-900 dark:text-white">${title}</h4>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">${message}</p>
+                    </div>
+                    <button onclick="this.closest('.toast-item').remove()" class="text-slate-400 hover:text-slate-600 transition-colors pt-1">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            `;
+            
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = toastHtml.trim();
+            const toast = tempDiv.firstElementChild;
+            container.appendChild(toast);
+            
+            if (!document.getElementById('toast-styles')) {
+                const style = document.createElement('style');
+                style.id = 'toast-styles';
+                style.innerHTML = `
+                    @@keyframes slideInRight { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+                    @@keyframes fadeOutToast { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.9); } }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            setTimeout(() => {
+                toast.style.animation = 'fadeOutToast 0.3s ease-out forwards';
+                setTimeout(() => toast.remove(), 300);
+            }, 4000);
+        }
+
         async function uploadDocumentAjax(e, form) {
             e.preventDefault();
             const btn = document.getElementById('btnUpload');
@@ -432,12 +495,13 @@
                     form.reset();
                     document.getElementById('fileNameLabel').textContent = 'Nhấn để chọn file...';
                     console.log("✈️ Upload thành công! Đang chờ SignalR đẩy dữ liệu mới về...");
+                    showToast('success', 'Tải tài liệu lên thành công!');
                 } else {
-                    alert("Lỗi: " + data.message);
+                    showToast('error', data.message);
                 }
             } catch (err) {
                 console.error(err);
-                alert("Có lỗi xảy ra trong quá trình tải tài liệu lên!");
+                showToast('error', 'Có lỗi xảy ra trong quá trình tải tài liệu lên!');
             } finally {
                 btn.innerHTML = originalText;
                 btn.disabled = false;

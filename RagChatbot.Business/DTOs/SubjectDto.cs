@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace RagChatbot.Business.DTOs
 {
     public class SubjectDto

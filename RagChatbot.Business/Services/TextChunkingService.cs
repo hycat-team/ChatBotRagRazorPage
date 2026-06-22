@@ -1,8 +1,5 @@
 #pragma warning disable SKEXP0050
-using System;
-using System.Collections.Generic;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Microsoft.SemanticKernel.Text;
 using RagChatbot.Business.Interfaces;

@@ -1,12 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
-using RagChatbot.DataAccess.Data;
 using RagChatbot.Business.Services;
-
-using RagChatbot.DataAccess.Repositories;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using RagChatbot.DataAccess.Interfaces;
-using RagChatbot.DataAccess.EntityModels;
 using RagChatbot.Business.Interfaces;
+using RagChatbot.Business.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 // Load .env file if it exists
@@ -28,18 +23,11 @@ else
 // Add services to the container.
 builder.Services.AddRazorPages();
 
-// Setup DbContext
+// Setup DbContext and Services via Business layer
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
                        ?? Environment.GetEnvironmentVariable("DB_CONNECTION_STRING");
 
-builder.Services.AddDbContext<ApplicationDbContext>(options =>
-{
-    options.UseNpgsql(connectionString, o =>
-    {
-        o.UseVector();
-        o.MigrationsAssembly("RagChatbot.DataAccess");
-    });
-});
+builder.Services.AddInfrastructureAndBusinessServices(connectionString);
 
 // Add SignalR
 builder.Services.AddSignalR();
@@ -63,8 +51,8 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
                 var userIdClaim = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
                 if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
                 {
-                    var dbContext = context.HttpContext.RequestServices.GetRequiredService<ApplicationDbContext>();
-                    var user = await dbContext.AppUsers.FindAsync(userId);
+                    var appUserService = context.HttpContext.RequestServices.GetRequiredService<IAppUserService>();
+                    var user = await appUserService.GetByIdAsync(userId);
 
                     // Náº¿u tÃ i khoáº£n khÃ´ng tá»“n táº¡i hoáº·c bá»‹ KhÃ³a (IsActive = false)
                     if (user == null || !user.IsActive)
@@ -79,30 +67,7 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         };
     });
 
-// Register Scoped Services
-builder.Services.AddScoped<IAppUserRepository, AppUserRepository>();
-builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<ISubjectRepository, SubjectRepository>();
-builder.Services.AddScoped<IDocumentRepository, DocumentRepository>();
-builder.Services.AddScoped<IDocumentChunkRepository, DocumentChunkRepository>();
-builder.Services.AddScoped<IChatSessionRepository, ChatSessionRepository>();
-builder.Services.AddScoped<IChatMessageRepository, ChatMessageRepository>();
-builder.Services.AddScoped<ISubjectService, SubjectService>();
-builder.Services.AddScoped<IDocumentService, DocumentService>();
-builder.Services.AddScoped<IChatService, ChatService>();
-builder.Services.AddScoped<IAppUserService, AppUserService>();
-builder.Services.AddScoped<IDepartmentService, DepartmentService>();
-builder.Services.AddScoped<IContactService, ContactService>();
-builder.Services.AddScoped<IDocumentExtractionService, DocumentExtractionService>();
-builder.Services.AddScoped<ITextChunkingService, TextChunkingService>();
-builder.Services.AddScoped<IAiService, AiService>();
-builder.Services.AddSingleton<IGoogleDriveService, GoogleDriveService>();
-builder.Services.AddSingleton<ILocalStorageService, LocalStorageService>();
-builder.Services.AddScoped<IVectorSearchService, VectorSearchService>();
-builder.Services.AddScoped<IAuditLogService, AuditLogService>();
-builder.Services.AddScoped<IEmailService, SmtpEmailService>();
-builder.Services.AddScoped<IDocumentProcessingService, DocumentProcessingService>();
-builder.Services.AddSingleton<IEmailQueue, EmailQueue>();
+// (Services are now registered in AddInfrastructureAndBusinessServices)
 
 // Register Background Service
 builder.Services.AddHostedService<RagChatbot.PresentationRazorPage.BackgroundJobs.DocumentProcessingJob>();
@@ -112,21 +77,7 @@ builder.Services.AddHostedService<RagChatbot.PresentationRazorPage.BackgroundJob
 var app = builder.Build();
 
 // Auto-migrate on startup for Docker environments
-using (var scope = app.Services.CreateScope())
-{
-    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    dbContext.Database.Migrate();
-
-    var stuckDocs = dbContext.Documents.Where(d => d.Status == "Processing").ToList();
-    if (stuckDocs.Any())
-    {
-        foreach (var doc in stuckDocs)
-        {
-            doc.Status = "Pending";
-        }
-        dbContext.SaveChanges();
-    }
-}
+app.Services.InitializeDatabase();
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

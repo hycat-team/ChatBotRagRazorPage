@@ -1,7 +1,5 @@
 using RagChatbot.Business.Interfaces;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Hosting;
 namespace RagChatbot.Business.Services
 {

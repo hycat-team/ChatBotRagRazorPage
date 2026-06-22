@@ -4,9 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using RagChatbot.Business.Interfaces;
 using RagChatbot.PresentationRazorPage.ViewModels;
-using System.Collections.Generic;
 using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace RagChatbot.PresentationRazorPage.Pages.Auth
 {

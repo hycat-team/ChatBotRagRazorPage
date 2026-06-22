@@ -1,15 +1,9 @@
 using RagChatbot.Business.Interfaces;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.ChatCompletion;
 using Microsoft.SemanticKernel.Embeddings;
-using Microsoft.SemanticKernel.Connectors.OpenAI;
 using System.Runtime.CompilerServices;
-using System;
-using System.Linq;
 #pragma warning disable CS0618
 
 namespace RagChatbot.Business.Services

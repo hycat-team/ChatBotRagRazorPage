@@ -1,20 +1,10 @@
 using RagChatbot.Business.Interfaces;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
-using Microsoft.AspNetCore.Hosting;
 using UglyToad.PdfPig;
 using DocumentFormat.OpenXml.Packaging;
-using DocumentFormat.OpenXml.Wordprocessing;
 using DocumentFormat.OpenXml.Presentation;
 using A = DocumentFormat.OpenXml.Drawing;
 using ExcelDataReader;
 using System.Text;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Collections.Generic;
-using System;
 
 namespace RagChatbot.Business.Services
 {

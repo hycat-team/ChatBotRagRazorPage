@@ -1,5 +1,3 @@
-using System.Threading.Tasks;
-
 namespace RagChatbot.Business.Interfaces
 {
     public interface IAuditLogService

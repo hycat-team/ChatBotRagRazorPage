@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using RagChatbot.Business.Interfaces;
 using System.Text.Json;
@@ -154,7 +154,7 @@ namespace RagChatbot.PresentationRazorPage.Hubs
                     {
                         if (user.DailyQueryCount >= 50)
                         {
-                            await Clients.Caller.SendAsync("ReceiveError", "B?n d� vu?t qu� gi?i h?n 50 c�u h?i/ng�y. Vui l�ng quay l?i v�o ng�y mai.");
+                            await Clients.Caller.SendAsync("ReceiveError", "Bạn đã vượt quá giới hạn 50 câu hỏi/ngày. Vui lòng quay lại vào ngày mai.");
                             return;
                         }
                     }
@@ -192,7 +192,7 @@ namespace RagChatbot.PresentationRazorPage.Hubs
 
                     if (!hasActiveDocs)
                     {
-                        var noDocFallback = "Hi?n t?i m�n h?c chua c� t�i li?u h?c t?p du?c k�ch ho?t tr�n h? th?ng. Vui l�ng quay l?i sau ho?c li�n h? B? m�n ph? tr�ch d? bi?t th�m chi ti?t.";
+                        var noDocFallback = "Hiện tại môn học chưa có tài liệu học tập được kích hoạt trên hệ thống. Vui lòng quay lại sau hoặc liên hệ Bộ môn phụ trách để biết thêm chi tiết.";
 
                         await Clients.Caller.SendAsync("ReceiveToken", "", false);
                         await Clients.Caller.SendAsync("ReceiveToken", noDocFallback, false);
@@ -223,6 +223,10 @@ namespace RagChatbot.PresentationRazorPage.Hubs
                         if (documentIds != null)
                         {
                             documentIds = documentIds.Where(id => id > 0).ToList();
+                            if (documentIds.Count == 0)
+                            {
+                                documentIds = null;
+                            }
                         }
 
                         similarChunks = await _vectorSearchService.SearchSimilarChunksAsync(subjectId, standaloneQuery, questionEmbedding, topK: 15, documentIds: documentIds);
@@ -248,7 +252,7 @@ namespace RagChatbot.PresentationRazorPage.Hubs
 
                     if (!isGreeting && similarChunks.Count == 0)
                     {
-                        var fallbackMessage = "H? th?ng kh�ng t�m th?y th�ng tin trong c�c t�i li?u d� ch?n.";
+                        var fallbackMessage = "Hệ thống không tìm thấy thông tin về câu hỏi";
 
                         await Clients.Caller.SendAsync("ReceiveToken", "", false);
                         await Clients.Caller.SendAsync("ReceiveToken", fallbackMessage, false);

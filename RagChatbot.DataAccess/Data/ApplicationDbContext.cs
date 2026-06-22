@@ -1,7 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using RagChatbot.DataAccess.EntityModels;
-using System;
-using System.Text.Json;
 namespace RagChatbot.DataAccess.Data
 {
     public class ApplicationDbContext : DbContext

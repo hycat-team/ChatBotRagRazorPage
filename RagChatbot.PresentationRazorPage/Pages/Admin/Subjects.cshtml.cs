@@ -4,10 +4,6 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.SignalR;
 using RagChatbot.PresentationRazorPage.Hubs;
 using RagChatbot.Business.Interfaces;
-using System;
-using System.Linq;
-using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace RagChatbot.PresentationRazorPage.Pages.Admin
 {
@@ -36,7 +32,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
         public async Task OnGetAsync()
         {
             SubjectsList = await _subjectService.GetAllAsync();
-            
+
             ViewData["Departments"] = await _departmentService.GetAllDepartmentsAsync();
         }
 
@@ -58,9 +54,9 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
                     Name = name,
                     DepartmentId = departmentId
                 };
-                
+
                 var createdSubject = await _subjectService.AddAsync(subjectDto);
-                
+
                 await _auditLogService.LogAsync(adminId, "Create Subject", createdSubject.Id.ToString(), $"Code: {code}, Name: {name}, DeptId: {departmentId}");
                 await _hubContext.Clients.All.SendAsync("SubjectListChanged");
                 TempData["Success"] = "Tạo môn học thành công.";
@@ -118,7 +114,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
                     Name = name,
                     DepartmentId = departmentId
                 };
-                
+
                 await _subjectService.AddAsync(subjectDto);
                 successCount++;
             }

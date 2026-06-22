@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace RagChatbot.DataAccess.EntityModels
 {
     public class Document

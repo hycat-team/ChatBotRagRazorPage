@@ -1,18 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.AspNetCore.SignalR;
 using RagChatbot.Business.Interfaces;
-using RagChatbot.Business.Mappings;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Security.Claims;
-using System.Threading.Tasks;
-using RagChatbot.PresentationRazorPage.Hubs;
 
 namespace RagChatbot.PresentationRazorPage.Pages.Document
 {
@@ -120,6 +112,14 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
             {
                 if (Request.Headers["Accept"].ToString().Contains("application/json")) return new JsonResult(new { success = false, message = "Invalid subject." });
                 TempData["Error"] = "Invalid subject.";
+                return RedirectToPage();
+            }
+
+            // Bổ sung: Chặn upload nếu môn học đã bị tắt
+            if (!subject.IsActive)
+            {
+                if (Request.Headers["Accept"].ToString().Contains("application/json")) return new JsonResult(new { success = false, message = "Không thể tải tài liệu cho môn học bị tắt" });
+                TempData["Error"] = "Không thể tải tài liệu cho môn học bị tắt";
                 return RedirectToPage();
             }
 

@@ -29,7 +29,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\RagChatbot.Business\RagChatbot.Business.csproj" />
-    <ProjectReference Include="..\RagChatbot.DataAccess\RagChatbot.DataAccess.csproj" />
   </ItemGroup>
 
   <ItemGroup>

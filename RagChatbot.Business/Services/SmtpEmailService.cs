@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using System.Net;
 using System.Net.Mail;
-using System.Threading.Tasks;
 using RagChatbot.Business.Interfaces;
 
 namespace RagChatbot.Business.Services

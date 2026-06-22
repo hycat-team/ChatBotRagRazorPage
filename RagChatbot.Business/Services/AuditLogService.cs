@@ -1,7 +1,6 @@
 using RagChatbot.Business.Interfaces;
 using RagChatbot.DataAccess.EntityModels;
 using RagChatbot.DataAccess.Data;
-using System.Threading.Tasks;
 
 namespace RagChatbot.Business.Services
 {

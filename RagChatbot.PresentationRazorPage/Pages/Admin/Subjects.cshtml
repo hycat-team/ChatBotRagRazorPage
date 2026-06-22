@@ -24,7 +24,7 @@
 
     
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
         
         <!-- Form Tạo Môn học -->
         <div class="lg:col-span-1">
@@ -109,7 +109,7 @@
         </div>
 
         <!-- Danh sách Môn học -->
-        <div class="lg:col-span-2">
+        <div class="lg:col-span-3">
             <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm overflow-hidden">
                 <div class="px-6 py-5 border-b border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/50 flex items-center justify-between">
                     <h3 class="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
@@ -147,9 +147,9 @@
                                     <tr class="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors group">
                                         <td class="px-6 py-4 font-mono text-xs font-bold text-slate-500 dark:text-slate-400 whitespace-nowrap">@subject.Code</td>
 
-                                        <td class="px-6 py-4 font-bold text-gray-900 dark:text-slate-100 whitespace-nowrap">@subject.Name</td>
+                                        <td class="px-6 py-4 font-bold text-gray-900 dark:text-slate-100">@subject.Name</td>
 
-                                        <td class="px-6 py-4 whitespace-nowrap">
+                                        <td class="px-6 py-4">
                                             @if (!string.IsNullOrEmpty(subject.DepartmentName))
                                             {
                                                 <span class="px-2 py-1 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 rounded text-xs font-medium border border-blue-100 dark:border-blue-500/20 whitespace-nowrap">
@@ -158,7 +158,7 @@
                                             }
                                         </td>
 
-                                        <td class="px-6 py-4 whitespace-nowrap">
+                                        <td class="px-6 py-4">
                                             @if (subject.ManagerName != "Trống")
                                             {
                                                 <span class="text-sm font-medium text-gray-900 dark:text-white">@subject.ManagerName</span>
@@ -169,7 +169,7 @@
                                             }
                                         </td>
 
-                                        <td class="px-6 py-4 whitespace-nowrap">
+                                        <td class="px-6 py-4">
                                             @if (subject.IsActive)
                                             {
                                                 <span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400 rounded-full text-xs font-semibold whitespace-nowrap">
