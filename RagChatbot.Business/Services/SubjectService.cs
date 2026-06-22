@@ -22,7 +22,7 @@ namespace RagChatbot.Business.Services
         {
             var entity = await _subjectRepository.Query()
                 .Include(s => s.Documents)
-                .Include(s => s.Department)
+                .Include(s => s.Department).ThenInclude(d => d.Users)
                 .FirstOrDefaultAsync(s => s.Id == id);
             return entity.ToDto();
         }
@@ -31,7 +31,7 @@ namespace RagChatbot.Business.Services
         {
             var entities = await _subjectRepository.Query()
                 .Include(s => s.Documents)
-                .Include(s => s.Department)
+                .Include(s => s.Department).ThenInclude(d => d.Users)
                 .Where(s => s.Department != null && s.Department.Users.Any(u => u.Id == userId))
                 .ToListAsync();
             return entities.Select(s => s.ToDto()!).ToList();
@@ -41,8 +41,8 @@ namespace RagChatbot.Business.Services
         {
             var entities = await _subjectRepository.Query()
                 .Include(s => s.Documents)
-                .Include(s => s.Department)
-                .Where(s => s.DepartmentId == departmentId && s.IsActive)
+                .Include(s => s.Department).ThenInclude(d => d.Users)
+                .Where(s => s.DepartmentId == departmentId)
                 .ToListAsync();
             return entities.Select(s => s.ToDto()!).ToList();
         }
@@ -51,7 +51,7 @@ namespace RagChatbot.Business.Services
         {
             var entities = await _subjectRepository.Query()
                 .Include(s => s.Documents)
-                .Include(s => s.Department)
+                .Include(s => s.Department).ThenInclude(d => d.Users)
                 .ToListAsync();
             return entities.Select(s => s.ToDto()!).ToList();
         }

@@ -23,8 +23,8 @@ namespace RagChatbot.Business.Services
         public VectorSearchService(IDocumentChunkRepository chunkRepo, IConfiguration configuration)
         {
             _chunkRepo = chunkRepo;
-            
-            var thresholdSetting = configuration["VectorSearch:DistanceThreshold"] 
+
+            var thresholdSetting = configuration["VectorSearch:DistanceThreshold"]
                                    ?? Environment.GetEnvironmentVariable("VECTOR_DISTANCE_THRESHOLD");
 
             if (double.TryParse(thresholdSetting, NumberStyles.Any, CultureInfo.InvariantCulture, out double parsedThreshold))

@@ -19,7 +19,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Profile
             _userService = userService;
         }
 
-        public RagChatbot.Business.DTOs.AppUserDto UserProfile { get; set; }
+        public RagChatbot.Business.DTOs.AppUserDto UserProfile { get; set; } = default!;
 
         public async Task<IActionResult> OnGetAsync()
         {

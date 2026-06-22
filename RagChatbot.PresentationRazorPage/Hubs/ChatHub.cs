@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using RagChatbot.Business.Interfaces;
 using System.Text.Json;
@@ -112,57 +112,49 @@ namespace RagChatbot.PresentationRazorPage.Hubs
                     return;
                 }
 
-                // ==================== ĐOẠN UPDATE CHẶN CHAT THEO GÓI DỊCH VỤ ====================
                 var user = await _userService.GetByIdAsync(userId);
                 if (user != null)
                 {
-                    // Chặn ngay lập tức nếu tài khoản bị khóa (ban) trong lúc đang kết nối
                     if (!user.IsActive)
                     {
                         await Clients.Caller.SendAsync("ReceiveError", "Tài khoản của bạn đã bị vô hiệu hóa. Phiên làm việc đã kết thúc.");
-                        Context.Abort(); // Ngắt kết nối SignalR ngay lập tức
+                        Context.Abort();
                         return;
                     }
 
                     var today = DateTime.UtcNow.Date;
 
-                    // 1. Tự động reset bộ đếm câu hỏi cũ qua ngày mới
                     if (user.LastQueryDate.Date < today)
                     {
                         user.DailyQueryCount = 0;
                         user.LastQueryDate = DateTime.UtcNow;
                     }
 
-                    // 2. Tự động reset bộ đếm gói Free/Premium mới qua ngày mới
                     if (user.LastActiveDate.Date < today)
                     {
                         user.TodayChatCount = 0;
                         user.LastActiveDate = today;
                     }
 
-                    // 3. Áp dụng luật giới hạn riêng cho tài khoản Học sinh (Student)
                     if (user.Role == "Student")
                     {
-                        // Nếu là học sinh gói FREE -> Chặn cứng khi đạt mốc 20 câu/ngày
                         if (user.Subscription == "Free")
                         {
                             if (user.TodayChatCount >= 20)
                             {
                                 await Clients.Caller.SendAsync("ReceiveError", "Bạn đã hết 20 lượt hỏi miễn phí của ngày hôm nay. Hãy nâng cấp gói Premium để chat không giới hạn nhé! 👑");
-                                return; // Chặn đứng luồng không cho gọi AI
+                                return;
                             }
-                            user.TodayChatCount++; // Tăng lượt đếm câu hỏi trong ngày của gói Free
+                            user.TodayChatCount++;
                         }
                     }
 
-                    // 4. Giữ bộ khóa 50 câu/ngày cũ cho các tài khoản thông thường khác (Giảng viên, tài khoản lỗi...)
-                    // Đặc cách: Admin và Học sinh gói PREMIUM sẽ hoàn toàn MIỄN NHIỄM với bộ chặn 50 câu này (Tha hồ chat tẹt ga)
                     bool isExemptFrom50Limit = user.Role == "Admin" || (user.Role == "Student" && user.Subscription == "Premium");
                     if (!isExemptFrom50Limit)
                     {
                         if (user.DailyQueryCount >= 50)
                         {
-                            await Clients.Caller.SendAsync("ReceiveError", "Bạn đã vượt quá giới hạn 50 câu hỏi/ngày. Vui lòng quay lại vào ngày mai.");
+                            await Clients.Caller.SendAsync("ReceiveError", "B?n d� vu?t qu� gi?i h?n 50 c�u h?i/ng�y. Vui l�ng quay l?i v�o ng�y mai.");
                             return;
                         }
                     }
@@ -170,7 +162,6 @@ namespace RagChatbot.PresentationRazorPage.Hubs
                     user.DailyQueryCount++;
                     await _userService.UpdateUserAsync(user);
                 }
-                // ===============================================================================
 
                 if (!Guid.TryParse(sessionIdStr, out var sessionId))
                 {
@@ -186,7 +177,6 @@ namespace RagChatbot.PresentationRazorPage.Hubs
 
                 try
                 {
-                    // 1. Save user message
                     var userMessage = new RagChatbot.Business.DTOs.CreateChatMessageDto
                     {
                         SessionId = sessionId,
@@ -195,16 +185,14 @@ namespace RagChatbot.PresentationRazorPage.Hubs
                     };
                     var savedUserMsg = await _chatService.AddMessageAsync(userMessage);
 
-                    // 2. Fetch recent conversation history early (excluding the current user message)
                     var history = await _chatService.GetRecentSessionMessagesAsync(sessionId, 10, savedUserMsg.Id);
 
-                    // 2.5 Check BR-03: Môn học phải có ít nhất 1 tài liệu Active, nếu không ngắt luồng
                     var allDocs = await _documentService.GetBySubjectIdAsync(subjectId);
                     bool hasActiveDocs = allDocs.Any(d => d.Status == "Indexed" && d.IsActive);
 
                     if (!hasActiveDocs)
                     {
-                        var noDocFallback = "Hiện tại môn học chưa có tài liệu học tập được kích hoạt trên hệ thống. Vui lòng quay lại sau hoặc liên hệ Bộ môn phụ trách để biết thêm chi tiết.";
+                        var noDocFallback = "Hi?n t?i m�n h?c chua c� t�i li?u h?c t?p du?c k�ch ho?t tr�n h? th?ng. Vui l�ng quay l?i sau ho?c li�n h? B? m�n ph? tr�ch d? bi?t th�m chi ti?t.";
 
                         await Clients.Caller.SendAsync("ReceiveToken", "", false);
                         await Clients.Caller.SendAsync("ReceiveToken", noDocFallback, false);
@@ -221,14 +209,12 @@ namespace RagChatbot.PresentationRazorPage.Hubs
                         return;
                     }
 
-                    // 3. Skip Vector DB Search for simple greetings, otherwise Rewrite Query
                     string standaloneQuery = message;
                     bool isGreeting = IsSimpleGreeting(message);
                     List<RagChatbot.Business.DTOs.DocumentChunkDto> similarChunks = new List<RagChatbot.Business.DTOs.DocumentChunkDto>();
 
                     if (!isGreeting)
                     {
-                        // Rewrite query using LLM based on chat history to get standalone query
                         standaloneQuery = await _aiService.RewriteQueryAsync(message, history);
                         _logger.LogInformation("Original Query: {OriginalQuery}, Standalone Query: {StandaloneQuery}", message, standaloneQuery);
 
@@ -243,10 +229,9 @@ namespace RagChatbot.PresentationRazorPage.Hubs
                     }
                     else
                     {
-                        // Hardcode greeting response to save tokens and avoid LLM API errors
                         var greetingResponse = "Chào bạn! Mình là trợ lý thông minh. Mình có thể giúp gì cho bạn hôm nay?";
 
-                        await Clients.Caller.SendAsync("ReceiveToken", "", false); // Initialize bubble
+                        await Clients.Caller.SendAsync("ReceiveToken", "", false);
                         await Clients.Caller.SendAsync("ReceiveToken", greetingResponse, false);
 
                         var assistantMsgGreeting = new RagChatbot.Business.DTOs.CreateChatMessageDto
@@ -261,12 +246,11 @@ namespace RagChatbot.PresentationRazorPage.Hubs
                         return;
                     }
 
-                    // ZERO_HALLUCINATION_POLICY: Return fallback if no relevant chunks are found
                     if (!isGreeting && similarChunks.Count == 0)
                     {
-                        var fallbackMessage = "Hệ thống không tìm thấy thông tin trong các tài liệu đã chọn.";
+                        var fallbackMessage = "H? th?ng kh�ng t�m th?y th�ng tin trong c�c t�i li?u d� ch?n.";
 
-                        await Clients.Caller.SendAsync("ReceiveToken", "", false); // Initialize bubble
+                        await Clients.Caller.SendAsync("ReceiveToken", "", false);
                         await Clients.Caller.SendAsync("ReceiveToken", fallbackMessage, false);
 
                         var assistantMsg = new RagChatbot.Business.DTOs.CreateChatMessageDto
@@ -324,7 +308,7 @@ Nếu hoàn toàn không có thông tin nào liên quan trong ngữ cảnh, hãy
                     var stream = _aiService.GetChatStreamingResponseAsync(systemPrompt, standaloneQuery, history, cts.Token);
 
                     var fullResponse = new System.Text.StringBuilder();
-                    bool wasCanceled = false;
+                    // bool wasCanceled = false;
 
                     await Clients.Caller.SendAsync("ReceiveToken", "", false);
 
@@ -338,7 +322,7 @@ Nếu hoàn toàn không có thông tin nào liên quan trong ngữ cảnh, hãy
                     }
                     catch (OperationCanceledException)
                     {
-                        wasCanceled = true;
+                        // wasCanceled = true;
                         _logger.LogInformation("Generation stopped by user for session {SessionId}", realSessionIdStr);
                         fullResponse.Append("\n\n*(Đã dừng tạo)*");
                         await Clients.Caller.SendAsync("ReceiveToken", "\n\n*(Đã dừng tạo)*", false);

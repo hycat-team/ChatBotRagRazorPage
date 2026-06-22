@@ -10,7 +10,7 @@ namespace RagChatbot.Business.DTOs
         public DateTime CreatedAt { get; set; }
         public int UserId { get; set; }
     }
-    
+
     public class CreateChatSessionDto
     {
         public int SubjectId { get; set; }

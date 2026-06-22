@@ -1,13 +1,13 @@
-using Microsoft.EntityFrameworkCore;
+
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.SignalR;
 using RagChatbot.PresentationRazorPage.Hubs;
 using RagChatbot.Business.Interfaces;
-using System.Linq;
+
 using System.Security.Claims;
-using System.Threading.Tasks;
+
 
 namespace RagChatbot.PresentationRazorPage.Pages.Admin
 {
@@ -31,7 +31,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
             _hubContext = hubContext;
         }
 
-        public System.Collections.Generic.IEnumerable<RagChatbot.Business.DTOs.DepartmentDto> DepartmentsList { get; set; }
+        public System.Collections.Generic.IEnumerable<RagChatbot.Business.DTOs.DepartmentDto> DepartmentsList { get; set; } = default!;
 
         public async Task OnGetAsync()
         {
@@ -146,7 +146,8 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
         public async Task<IActionResult> OnGetDepartmentTermHistoryAsync(int deptId)
         {
             var result = await _userService.GetDepartmentTermHistoryAsync(deptId);
-            return new JsonResult(result.Select(t => new {
+            return new JsonResult(result.Select(t => new
+            {
                 hodName = t.HodName,
                 startAt = t.StartAt,
                 endAt = t.EndAt

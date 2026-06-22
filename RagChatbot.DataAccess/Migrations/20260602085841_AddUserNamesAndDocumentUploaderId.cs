@@ -16,7 +16,7 @@ namespace RagChatbot.DataAccess.Migrations
                 type: "integer",
                 nullable: false,
                 defaultValue: 0);
-            
+
             // Patch: Gán tất cả tài liệu cũ cho Admin (Id = 1) để không bị lỗi khóa ngoại (do defaultValue=0 không có user)
             migrationBuilder.Sql("UPDATE \"Documents\" SET \"UploaderId\" = 1;");
 

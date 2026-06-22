@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.EntityFrameworkCore;
 using RagChatbot.Business.Interfaces;
 using System.Linq;
 using System.Threading.Tasks;
@@ -22,7 +21,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Hod
             _auditLogService = auditLogService;
         }
 
-        public System.Collections.Generic.IEnumerable<RagChatbot.Business.DTOs.SubjectDto> Subjects { get; set; }
+        public System.Collections.Generic.IEnumerable<RagChatbot.Business.DTOs.SubjectDto> Subjects { get; set; } = default!;
 
         private async Task<RagChatbot.Business.DTOs.AppUserDto> GetCurrentUser()
         {
@@ -31,7 +30,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Hod
             {
                 return await _userService.GetByIdAsync(userId);
             }
-            return null;
+            return null!;
         }
 
         public async Task<IActionResult> OnGetAsync()
@@ -50,7 +49,8 @@ namespace RagChatbot.PresentationRazorPage.Pages.Hod
             if (user == null) return Unauthorized();
 
             var subjects = await _subjectService.GetByDepartmentIdAsync(user.DepartmentId ?? 0);
-            var subjectData = subjects.Select(s => new {
+            var subjectData = subjects.Select(s => new
+            {
                 s.Code,
                 s.Name,
                 s.IsActive

@@ -14,7 +14,7 @@ namespace RagChatbot.Business.DTOs
         public int? DepartmentId { get; set; }
         public int DailyQueryCount { get; set; } = 0;
         public DateTime LastQueryDate { get; set; }
-        public string Subscription { get; set; } = "Free"; 
+        public string Subscription { get; set; } = "Free";
         public int TodayChatCount { get; set; } = 0;
         public DateTime LastActiveDate { get; set; }
 

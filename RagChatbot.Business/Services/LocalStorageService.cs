@@ -5,7 +5,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.AspNetCore.Hosting;
 namespace RagChatbot.Business.Services
 {
-    
+
 
     public class LocalStorageService : ILocalStorageService
     {

@@ -114,7 +114,7 @@ namespace RagChatbot.Business.Services
                     Console.WriteLine($"[GoogleEmbeddingService] Batch [{batchStart}/{totalCount}] got HTTP {statusCode}. Retry {attempt}/{MaxRetries} in {delayMs / 1000}s...");
                     await Task.Delay(delayMs, cancellationToken);
                     delayMs = Math.Min(delayMs * 2, 60_000); // cap at 60s
-                    
+
                     rotationAttempts = 0;
                     Interlocked.Increment(ref _currentIndex);
                 }

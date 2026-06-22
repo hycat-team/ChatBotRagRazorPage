@@ -42,12 +42,12 @@ namespace RagChatbot.Business.Services
 
             // Reassemble ordered collection and decode hidden mask values
             var finalizedChunks = new List<string>();
-            
+
             foreach (var paragraph in rawParagraphs)
             {
                 // Revert masking strings back to standard numerical dots
                 string restoredText = paragraph.Replace("ALPHANUMERICDOTMASK", ".").Trim();
-                
+
                 // Clean up accidental trailing fragments if they end with headers
                 if (Regex.IsMatch(restoredText, @"\*\*\s*[^*]+\s*\*\*\s*$"))
                 {

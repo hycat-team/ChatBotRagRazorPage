@@ -100,7 +100,7 @@ namespace RagChatbot.Business.Services
                 user.IsActive = userDto.IsActive;
                 user.DepartmentId = userDto.DepartmentId;
                 user.Subscription = userDto.Subscription == "Premium" ? AppUser.SubscriptionType.Premium : AppUser.SubscriptionType.Free;
-                
+
                 await _context.SaveChangesAsync();
             }
         }
@@ -204,7 +204,8 @@ namespace RagChatbot.Business.Services
 
                 if (departmentId.HasValue)
                 {
-                    _context.HodTerms.Add(new HodTerm {
+                    _context.HodTerms.Add(new HodTerm
+                    {
                         AppUserId = user.Id,
                         DepartmentId = departmentId.Value,
                         StartAt = System.DateTime.UtcNow
@@ -223,7 +224,7 @@ namespace RagChatbot.Business.Services
             {
                 var activeTerm = await _context.HodTerms.FirstOrDefaultAsync(t => t.AppUserId == user.Id && t.EndAt == null);
                 if (activeTerm != null) activeTerm.EndAt = System.DateTime.UtcNow;
-                
+
                 user.DepartmentId = null;
                 await _context.SaveChangesAsync();
             }
@@ -237,7 +238,8 @@ namespace RagChatbot.Business.Services
                 .OrderByDescending(t => t.StartAt)
                 .ToListAsync();
 
-            return terms.Select(t => new HodTermDto {
+            return terms.Select(t => new HodTermDto
+            {
                 DepartmentName = t.Department != null ? t.Department.Name : "Không rõ",
                 StartAt = t.StartAt.ToString("dd/MM/yyyy"),
                 EndAt = t.EndAt.HasValue ? t.EndAt.Value.ToString("dd/MM/yyyy") : null
@@ -252,7 +254,8 @@ namespace RagChatbot.Business.Services
                 .OrderByDescending(t => t.StartAt)
                 .ToListAsync();
 
-            return terms.Select(t => new HodTermDto {
+            return terms.Select(t => new HodTermDto
+            {
                 HodName = t.AppUser != null ? (t.AppUser.LastName + " " + t.AppUser.FirstName).Trim() : "Không rõ",
                 StartAt = t.StartAt.ToString("dd/MM/yyyy"),
                 EndAt = t.EndAt.HasValue ? t.EndAt.Value.ToString("dd/MM/yyyy") : null

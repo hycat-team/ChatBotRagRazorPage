@@ -14,7 +14,7 @@ using System.Linq;
 
 namespace RagChatbot.Business.Services
 {
-    
+
 
     public class AiService : IAiService
     {
@@ -29,7 +29,7 @@ namespace RagChatbot.Business.Services
             var apiKeyString = (configuration["GoogleAi:ApiKey"] ?? configuration["OpenAI:ApiKey"] ?? Environment.GetEnvironmentVariable("OPENAI_API_KEY"))?.Trim();
             if (string.IsNullOrEmpty(apiKeyString)) apiKeyString = "dummy-key-to-prevent-crash";
             var endpoint = (configuration["GoogleAi:Endpoint"] ?? configuration["OpenAI:Endpoint"] ?? Environment.GetEnvironmentVariable("OPENAI_ENDPOINT"))?.Trim();
-            
+
             var chatModel = (configuration["GoogleAi:ChatModel"] ?? configuration["OpenAI:ChatModel"] ?? Environment.GetEnvironmentVariable("OPENAI_CHAT_MODEL"))?.Trim();
             var fastChatModel = (configuration["GoogleAi:FastChatModel"] ?? configuration["OpenAI:FastChatModel"] ?? Environment.GetEnvironmentVariable("OPENAI_FAST_CHAT_MODEL"))?.Trim();
             var embeddingModelString = (configuration["GoogleAi:EmbeddingModel"] ?? configuration["OpenAI:EmbeddingModel"] ?? Environment.GetEnvironmentVariable("OPENAI_EMBEDDING_MODEL"))?.Trim();
@@ -39,7 +39,7 @@ namespace RagChatbot.Business.Services
                                       .Where(k => !string.IsNullOrEmpty(k))
                                       .ToArray();
             if (apiKeys.Length == 0) apiKeys = new[] { "dummy-key-to-prevent-crash" };
-            
+
             var firstApiKey = apiKeys[0];
             var isGoogleKey = firstApiKey != null && (firstApiKey.StartsWith("AIza") || firstApiKey.StartsWith("AQ."));
 
@@ -50,9 +50,9 @@ namespace RagChatbot.Business.Services
             {
                 if (string.IsNullOrEmpty(chatModel)) chatModel = "gemini-2.5-pro";
                 if (string.IsNullOrEmpty(fastChatModel)) fastChatModel = "gemini-2.5-flash";
-                
-                var embeddingModels = string.IsNullOrEmpty(embeddingModelString) 
-                    ? new[] { "gemini-embedding-2-preview" } 
+
+                var embeddingModels = string.IsNullOrEmpty(embeddingModelString)
+                    ? new[] { "gemini-embedding-2-preview" }
                     : embeddingModelString.Split(',').Select(m => m.Trim()).ToArray();
 
                 builder.AddGoogleAIGeminiChatCompletion(chatModel, firstApiKey!);
@@ -62,9 +62,9 @@ namespace RagChatbot.Business.Services
             {
                 if (string.IsNullOrEmpty(chatModel)) chatModel = "gpt-4o-mini";
                 if (string.IsNullOrEmpty(fastChatModel)) fastChatModel = "gpt-4o-mini";
-                
-                var singleEmbeddingModel = string.IsNullOrEmpty(embeddingModelString) 
-                    ? "text-embedding-3-small" 
+
+                var singleEmbeddingModel = string.IsNullOrEmpty(embeddingModelString)
+                    ? "text-embedding-3-small"
                     : embeddingModelString.Split(',').Select(m => m.Trim()).First();
 
                 if (!string.IsNullOrEmpty(endpoint))
@@ -86,16 +86,16 @@ namespace RagChatbot.Business.Services
 
             _kernel = builder.Build();
             _chatCompletion = _kernel.GetRequiredService<IChatCompletionService>();
-            
+
             var fastKernel = fastBuilder.Build();
             _fastChatCompletion = fastKernel.GetRequiredService<IChatCompletionService>();
-            
+
             if (isGoogleKey && string.IsNullOrEmpty(endpoint))
             {
-                var embeddingModels = string.IsNullOrEmpty(embeddingModelString) 
-                    ? new[] { "gemini-embedding-2-preview" } 
+                var embeddingModels = string.IsNullOrEmpty(embeddingModelString)
+                    ? new[] { "gemini-embedding-2-preview" }
                     : embeddingModelString.Split(',').Select(m => m.Trim()).ToArray();
-                    
+
                 _embeddingGeneration = new GoogleEmbeddingService(embeddingModels, apiKeys);
             }
             else
@@ -120,7 +120,7 @@ namespace RagChatbot.Business.Services
         public async IAsyncEnumerable<string> GetChatStreamingResponseAsync(string systemPrompt, string userMessage, IEnumerable<RagChatbot.Business.DTOs.ChatMessageDto>? history = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
         {
             var chatHistory = new ChatHistory(systemPrompt);
-            
+
             if (history != null)
             {
                 foreach (var msg in history)
@@ -129,7 +129,7 @@ namespace RagChatbot.Business.Services
                     else if (msg.Role == "assistant") chatHistory.AddAssistantMessage(msg.Content);
                 }
             }
-            
+
             chatHistory.AddUserMessage(userMessage);
 
             var executionSettings = new PromptExecutionSettings
@@ -149,7 +149,7 @@ namespace RagChatbot.Business.Services
                 bool hasYielded = false;
                 IAsyncEnumerator<StreamingChatMessageContent>? enumerator = null;
                 bool retryNeeded = false;
-                
+
                 try
                 {
                     var stream = _chatCompletion.GetStreamingChatMessageContentsAsync(chatHistory, executionSettings, _kernel, cancellationToken);
@@ -180,7 +180,7 @@ namespace RagChatbot.Business.Services
                 {
                     bool hasNext = false;
                     StreamingChatMessageContent? currentContent = null;
-                    
+
                     try
                     {
                         if (enumerator != null)
@@ -201,20 +201,20 @@ namespace RagChatbot.Business.Services
                     {
                         retryNeeded = true;
                     }
-                    
+
                     if (retryNeeded)
                     {
                         Console.WriteLine($"[AiService] API Error during stream. Retrying ({attempt}/{maxRetries}) in {delayMs}ms...");
                         await Task.Delay(delayMs, cancellationToken);
                         delayMs *= 2;
                         if (enumerator != null) await enumerator.DisposeAsync();
-                        break; 
+                        break;
                     }
 
                     if (!hasNext)
                     {
                         if (enumerator != null) await enumerator.DisposeAsync();
-                        
+
                         // Retry if response is completely empty
                         if (!hasYielded && attempt < maxRetries)
                         {
@@ -223,8 +223,8 @@ namespace RagChatbot.Business.Services
                             delayMs *= 2;
                             break; // break while loop to continue for loop
                         }
-                        
-                        yield break; 
+
+                        yield break;
                     }
 
                     if (currentContent?.Content != null)

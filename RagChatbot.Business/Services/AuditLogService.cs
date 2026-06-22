@@ -23,7 +23,7 @@ namespace RagChatbot.Business.Services
                 TargetObjectId = targetObjectId,
                 Details = details
             };
-            
+
             _context.AuditLogs.Add(log);
             await _context.SaveChangesAsync();
         }

@@ -1,15 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.StaticFiles;
-using Microsoft.EntityFrameworkCore;
 using RagChatbot.Business.Interfaces;
-using System;
-using System.IO;
-using System.Linq;
 using System.Security.Claims;
-using System.Threading.Tasks;
 
 namespace RagChatbot.PresentationRazorPage.Pages.Admin
 {
@@ -39,7 +33,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
             _env = env;
         }
 
-        public System.Collections.Generic.IEnumerable<RagChatbot.Business.DTOs.DocumentDto> Documents { get; set; }
+        public System.Collections.Generic.IEnumerable<RagChatbot.Business.DTOs.DocumentDto> Documents { get; set; } = default!;
 
         public async Task OnGetAsync()
         {
@@ -84,7 +78,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
             return RedirectToPage();
         }
 
-        [Authorize(Roles = "Admin,HeadOfDepartment,Student")]
+        // [Authorize(Roles = "Admin,HeadOfDepartment,Student")] // MVC1001: Cannot be applied to handler methods
         public async Task<IActionResult> OnGetViewDocumentAsync(int id)
         {
             var document = await _documentService.GetByIdAsync(id);
@@ -127,7 +121,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
                 possiblePaths.Add(Path.Combine(webRoot, "uploads", fileNameOnDisk));
                 possiblePaths.Add(Path.Combine(webRoot, fileNameOnDisk));
             }
-            string absolutePath = null;
+            string? absolutePath = null;
             foreach (var path in possiblePaths)
             {
                 if (System.IO.File.Exists(path))

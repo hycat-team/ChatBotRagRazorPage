@@ -30,7 +30,7 @@
                     <form asp-page-handler="Upload" method="post" enctype="multipart/form-data" class="space-y-3" onsubmit="uploadDocumentAjax(event, this)">
                         <div>
                             <label class="block text-xs font-bold text-slate-500 dark:text-slate-300 mb-1">Môn học</label>
-                            <select name="subjectId" required
+                            <select name="subjectId" id="subject-select" required
                                     class="w-full bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-sm text-gray-800 dark:text-slate-100 focus:border-emerald-500 dark:focus:border-emerald-500 focus:ring-1 focus:ring-emerald-200 dark:focus:ring-emerald-500/20 outline-none transition-all">
                                 <option value="" disabled selected="@(!Model.ViewModel.LastSelectedSubjectId.HasValue)" class="text-slate-400 dark:text-slate-500">-- Chọn môn học --</option>
                                 @if (Model.ViewModel.Subjects != null)
@@ -62,6 +62,7 @@
             }
         </div>
 
+        <div id="subject-list-container">
         @if (Model.ViewModel.Subjects != null && Model.ViewModel.Subjects.Any())
         {
             <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm transition-colors duration-200">
@@ -87,8 +88,9 @@
                 </div>
             </div>
         }
+        </div>
 
-        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm transition-colors duration-200">
+        <div id="document-container" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm transition-colors duration-200">
             <div class="px-5 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50">
                 <h2 class="text-sm font-bold text-gray-800 dark:text-slate-100 flex items-center gap-2">
                     <i class="fa-solid fa-file-lines text-emerald-500 dark:text-emerald-400 text-xs"></i> Tài liệu (@Model.ViewModel.Documents.Count())
@@ -433,23 +435,42 @@
             .withUrl("/appNotificationHub")
             .build();
 
-        connection.on("DocumentListChanged", async () => {
+        async function softReloadPage() {
             try {
-                const res = await fetch(window.location.href);
+                const url = new URL(window.location.href);
+                url.searchParams.set('_t', new Date().getTime());
+                const res = await fetch(url.toString(), { cache: "no-store" });
                 const html = await res.text();
                 const parser = new DOMParser();
                 const doc = parser.parseFromString(html, "text/html");
 
-                const currentTable = document.getElementById('document-list-body');
-                const newTable = doc.getElementById('document-list-body');
-                if (currentTable && newTable) {
-                    currentTable.innerHTML = newTable.innerHTML;
-                    console.log("Danh sách tài liệu đã được tự động cập nhật ngầm!");
+                // Update documents
+                const currentDoc = document.getElementById('document-container');
+                const newDoc = doc.getElementById('document-container');
+                if (currentDoc && newDoc) currentDoc.innerHTML = newDoc.innerHTML;
+
+                // Update subject list
+                const currentSubList = document.getElementById('subject-list-container');
+                const newSubList = doc.getElementById('subject-list-container');
+                if (currentSubList && newSubList) currentSubList.innerHTML = newSubList.innerHTML;
+
+                // Update subject dropdown
+                const currentSelect = document.getElementById('subject-select');
+                const newSelect = doc.getElementById('subject-select');
+                if (currentSelect && newSelect) {
+                    const selectedVal = currentSelect.value;
+                    currentSelect.innerHTML = newSelect.innerHTML;
+                    if (selectedVal) currentSelect.value = selectedVal; // restore selection
                 }
+
+                console.log("Giao diện đã được tự động cập nhật ngầm!");
             } catch (err) {
                 console.error("Lỗi cập nhật bảng ngầm:", err);
             }
-        });
+        }
+
+        connection.on("DocumentListChanged", softReloadPage);
+        connection.on("SubjectListChanged", softReloadPage);
 
         connection.start().catch(err => console.error(err.toString()));
     </script>

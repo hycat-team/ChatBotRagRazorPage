@@ -50,7 +50,7 @@ namespace RagChatbot.PresentationRazorPage.BackgroundJobs
             using var scope = _serviceProvider.CreateScope();
             var processingService = scope.ServiceProvider.GetRequiredService<IDocumentProcessingService>();
 
-            await processingService.ProcessNextPendingDocumentAsync(async () => 
+            await processingService.ProcessNextPendingDocumentAsync(async () =>
             {
                 await _hubContext.Clients.All.SendAsync("DocumentListChanged");
             }, stoppingToken);

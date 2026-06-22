@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using RagChatbot.DataAccess.Data;
 using RagChatbot.Business.Services;
 
@@ -52,26 +52,26 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.LogoutPath = "/Auth/Logout";
         options.ExpireTimeSpan = TimeSpan.FromDays(7);
 
-        // CẤU HÌNH THÊM DÒNG NÀY: Điều hướng khi bị chặn quyền truy cập (Ví dụ: Học sinh vào trang Admin)
+        // Cáº¤U HÃŒNH THÃŠM DÃ’NG NÃ€Y: Äiá»u hÆ°á»›ng khi bá»‹ cháº·n quyá»n truy cáº­p (VÃ­ dá»¥: Há»c sinh vÃ o trang Admin)
         options.AccessDeniedPath = "/Auth/AccessDenied";
 
-        // KHI TÀI KHOẢN BỊ KHÓA SẼ VĂNG RA NGAY
+        // KHI TÃ€I KHOáº¢N Bá»Š KHÃ“A Sáº¼ VÄ‚NG RA NGAY
         options.Events = new CookieAuthenticationEvents
         {
             OnValidatePrincipal = async context =>
             {
-                var userIdClaim = context.Principal.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+                var userIdClaim = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
                 if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
                 {
                     var dbContext = context.HttpContext.RequestServices.GetRequiredService<ApplicationDbContext>();
                     var user = await dbContext.AppUsers.FindAsync(userId);
-                    
-                    // Nếu tài khoản không tồn tại hoặc bị Khóa (IsActive = false)
+
+                    // Náº¿u tÃ i khoáº£n khÃ´ng tá»“n táº¡i hoáº·c bá»‹ KhÃ³a (IsActive = false)
                     if (user == null || !user.IsActive)
                     {
                         context.RejectPrincipal();
                         await Microsoft.AspNetCore.Authentication.AuthenticationHttpContextExtensions.SignOutAsync(
-                            context.HttpContext, 
+                            context.HttpContext,
                             CookieAuthenticationDefaults.AuthenticationScheme);
                     }
                 }

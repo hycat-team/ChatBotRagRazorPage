@@ -139,11 +139,11 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
             return RedirectToPage();
         }
 
-        public async Task<IActionResult> OnPostUpdateSubjectAsync(int id, string code, string name)
+        public async Task<IActionResult> OnPostUpdateSubjectAsync(int id, string name)
         {
-            if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(name))
+            if (string.IsNullOrWhiteSpace(name))
             {
-                TempData["Error"] = "Vui lòng nhập đủ thông tin.";
+                TempData["Error"] = "Vui lòng nhập tên môn học.";
                 return RedirectToPage();
             }
 
@@ -154,19 +154,11 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
                 return RedirectToPage();
             }
 
-            var exists = await _subjectService.ExistsByCodeAsync(code, id);
-            if (exists)
-            {
-                TempData["Error"] = "Mã môn học đã tồn tại.";
-                return RedirectToPage();
-            }
-
-            subject.Code = code;
             subject.Name = name;
             await _subjectService.UpdateAsync(subject);
 
             var adminId = int.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "0");
-            await _auditLogService.LogAsync(adminId, "Update Subject", subject.Id.ToString(), $"Code: {code}, Name: {name}");
+            await _auditLogService.LogAsync(adminId, "Update Subject", subject.Id.ToString(), $"Name: {name}");
             await _hubContext.Clients.All.SendAsync("SubjectListChanged");
 
             TempData["Success"] = "Cập nhật môn học thành công.";

@@ -35,7 +35,7 @@ namespace RagChatbot.Business.Services
                 UserId = userId
             };
             var session = dto.ToEntity();
-            
+
             await _sessionRepository.AddAsync(session);
             await _sessionRepository.SaveChangesAsync();
             return session.ToDto()!;
@@ -50,12 +50,12 @@ namespace RagChatbot.Business.Services
         public async Task<IEnumerable<ChatMessageDto>> GetRecentSessionMessagesAsync(Guid sessionId, int limit, int? excludeMessageId = null)
         {
             var query = _messageRepository.Query().Where(m => m.SessionId == sessionId);
-            
+
             if (excludeMessageId.HasValue)
             {
                 query = query.Where(m => m.Id != excludeMessageId.Value);
             }
-            
+
             var messages = query.OrderByDescending(m => m.Timestamp).Take(limit).ToList();
             messages.Reverse(); // Return in chronological order
             return messages.Select(m => m.ToDto()!).ToList();
@@ -66,7 +66,7 @@ namespace RagChatbot.Business.Services
             var message = dto.ToEntity();
             if (message.Timestamp == default)
                 message.Timestamp = DateTime.UtcNow;
-                
+
             await _messageRepository.AddAsync(message);
             await _messageRepository.SaveChangesAsync();
             return message.ToDto()!;

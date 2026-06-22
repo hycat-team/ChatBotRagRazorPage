@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.StaticFiles;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.SignalR;
 using RagChatbot.Business.Interfaces;
 using RagChatbot.Business.Mappings;
@@ -348,7 +347,8 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
             var docs = await _documentService.GetBySubjectIdAsync(subjectId);
             var indexedDocs = docs
                 .Where(d => d.Status == "Indexed" && d.IsActive)
-                .Select(d => new {
+                .Select(d => new
+                {
                     d.Id,
                     FileName = string.IsNullOrWhiteSpace(d.DisplayName) ? d.FileName : d.DisplayName,
                     d.UploadedAt,
@@ -386,7 +386,8 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
             }
 
             var chunks = await _documentService.GetChunksForDocumentAsync(id);
-            var result = chunks.Select(c => new {
+            var result = chunks.Select(c => new
+            {
                 id = c.Id,
                 content = c.Content,
                 pageNumber = c.PageNumber

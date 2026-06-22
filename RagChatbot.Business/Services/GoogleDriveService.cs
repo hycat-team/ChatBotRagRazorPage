@@ -12,7 +12,7 @@ using Google.Apis.Upload;
 
 namespace RagChatbot.Business.Services
 {
-    
+
 
     public class GoogleDriveService : IGoogleDriveService
     {

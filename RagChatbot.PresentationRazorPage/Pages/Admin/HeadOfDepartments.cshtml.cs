@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
-using Microsoft.EntityFrameworkCore;
 using RagChatbot.Business.Interfaces;
 using System;
 using System.Linq;
@@ -41,9 +40,9 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
         public async Task<IActionResult> OnPostCreateHodAsync(string email, string firstName, string lastName, int departmentId)
         {
             var dept = await _departmentService.GetByIdAsync(departmentId);
-            if (dept == null || !dept.IsActive)
+            if (dept == null)
             {
-                TempData["Error"] = "Không thể gán Trưởng bộ môn cho bộ môn không tồn tại hoặc đang bị vô hiệu hóa.";
+                TempData["Error"] = "Không thể gán Trưởng bộ môn cho bộ môn không tồn tại.";
                 return RedirectToPage();
             }
 
@@ -98,9 +97,9 @@ namespace RagChatbot.PresentationRazorPage.Pages.Admin
             if (departmentId.HasValue && user.DepartmentId != departmentId)
             {
                 var dept = await _departmentService.GetByIdAsync(departmentId.Value);
-                if (dept == null || !dept.IsActive)
+                if (dept == null)
                 {
-                    TempData["Error"] = "Không thể đổi sang bộ môn không tồn tại hoặc đang bị vô hiệu hóa.";
+                    TempData["Error"] = "Không thể đổi sang bộ môn không tồn tại.";
                     return RedirectToPage();
                 }
 

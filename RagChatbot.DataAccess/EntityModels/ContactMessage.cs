@@ -32,7 +32,7 @@ namespace RagChatbot.DataAccess.EntityModels
         public int UserId { get; set; } // ⚠️ LƯU Ý: Nếu Id của AppUser trong dự án của ông là kiểu 'string' hoặc 'Guid' thì hãy đổi kiểu dữ liệu ở đây lại cho khớp nhé!
 
         [ForeignKey("UserId")]
-        public virtual AppUser User { get; set; }
+        public virtual AppUser User { get; set; } = default!;
 
         // Nội dung phản hồi/kêu cứu từ học sinh
         public string Content { get; set; } = string.Empty;
@@ -48,6 +48,6 @@ namespace RagChatbot.DataAccess.EntityModels
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         // Navigation property (Nếu ông muốn thiết lập liên kết khóa ngoại trực tiếp trong EF Core)
-        // public virtual AppUser User { get; set; } = null!;
+        // public virtual AppUser User { get; set; } = default!; = null!;
     }
 }

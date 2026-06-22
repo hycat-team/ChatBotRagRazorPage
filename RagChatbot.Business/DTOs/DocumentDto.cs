@@ -15,7 +15,7 @@ namespace RagChatbot.Business.DTOs
         public DateTime UploadedAt { get; set; }
         public string UploaderFullName { get; set; } = string.Empty;
         public int UploaderId { get; set; }
-        
+
         public SubjectDto? Subject { get; set; }
         public ICollection<DocumentChunkDto> DocumentChunks { get; set; } = new List<DocumentChunkDto>();
     }

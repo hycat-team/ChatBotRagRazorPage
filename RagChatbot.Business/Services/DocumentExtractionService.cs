@@ -23,7 +23,7 @@ namespace RagChatbot.Business.Services
         public Task<List<PageContent>> ExtractTextAsync(string filePath)
         {
             var extension = Path.GetExtension(filePath).ToLowerInvariant();
-            
+
             return Task.Run(() =>
             {
                 if (extension == ".pdf")
@@ -46,7 +46,7 @@ namespace RagChatbot.Business.Services
                 {
                     return ExtractFromPptx(filePath);
                 }
-                
+
                 throw new NotSupportedException($"File format {extension} is not supported.");
             });
         }
@@ -54,7 +54,7 @@ namespace RagChatbot.Business.Services
         private List<PageContent> ExtractFromPdf(string filePath)
         {
             var result = new List<PageContent>();
-            
+
             using (var pdf = PdfDocument.Open(filePath))
             {
                 foreach (var page in pdf.GetPages())
@@ -70,14 +70,14 @@ namespace RagChatbot.Business.Services
                     }
                 }
             }
-            
+
             return result;
         }
 
         private List<PageContent> ExtractFromDocx(string filePath)
         {
             var result = new List<PageContent>();
-            
+
             using (var wordDocument = WordprocessingDocument.Open(filePath, false))
             {
                 var body = wordDocument.MainDocumentPart?.Document?.Body;
@@ -118,10 +118,10 @@ namespace RagChatbot.Business.Services
         private List<PageContent> ExtractFromXlsx(string filePath)
         {
             var result = new List<PageContent>();
-            
+
             // Register encoding provider for ExcelDataReader support on .NET Core
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-            
+
             using (var stream = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
             {
                 using (var reader = ExcelReaderFactory.CreateReader(stream))
@@ -132,7 +132,7 @@ namespace RagChatbot.Business.Services
                         var sheetName = reader.Name;
                         var sb = new StringBuilder();
                         sb.AppendLine($"--- Sheet: {sheetName} ---");
-                        
+
                         var rows = new List<List<string>>();
                         while (reader.Read())
                         {
@@ -147,12 +147,12 @@ namespace RagChatbot.Business.Services
                                 rows.Add(row);
                             }
                         }
-                        
+
                         foreach (var row in rows)
                         {
                             sb.AppendLine(string.Join(" | ", row));
                         }
-                        
+
                         var sheetText = sb.ToString();
                         if (!string.IsNullOrWhiteSpace(sheetText))
                         {
@@ -165,14 +165,14 @@ namespace RagChatbot.Business.Services
                     } while (reader.NextResult());
                 }
             }
-            
+
             return result;
         }
 
         private List<PageContent> ExtractFromPptx(string filePath)
         {
             var result = new List<PageContent>();
-            
+
             using (var presentationDocument = PresentationDocument.Open(filePath, false))
             {
                 var presentationPart = presentationDocument.PresentationPart;
@@ -189,7 +189,7 @@ namespace RagChatbot.Business.Services
                             if (slidePart != null && slidePart.Slide != null)
                             {
                                 var texts = new List<string>();
-                                
+
                                 foreach (var paragraph in slidePart.Slide.Descendants<A.Paragraph>())
                                 {
                                     var text = string.Join("", paragraph.Descendants<A.Text>().Select(t => t.Text));
@@ -198,7 +198,7 @@ namespace RagChatbot.Business.Services
                                         texts.Add(text);
                                     }
                                 }
-                                
+
                                 var slideText = string.Join("\n", texts);
                                 if (!string.IsNullOrWhiteSpace(slideText))
                                 {
@@ -213,7 +213,7 @@ namespace RagChatbot.Business.Services
                     }
                 }
             }
-            
+
             return result;
         }
     }

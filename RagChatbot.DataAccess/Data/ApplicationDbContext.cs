@@ -25,7 +25,7 @@ namespace RagChatbot.DataAccess.Data
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
-            
+
             modelBuilder.HasPostgresExtension("vector");
 
 
@@ -64,7 +64,7 @@ namespace RagChatbot.DataAccess.Data
                 .WithMany(d => d.Users)
                 .HasForeignKey(u => u.DepartmentId)
                 .OnDelete(DeleteBehavior.SetNull);
-                
+
             // Department -> Subject
             modelBuilder.Entity<Subject>()
                 .HasOne(s => s.Department)

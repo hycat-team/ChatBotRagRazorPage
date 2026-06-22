@@ -137,15 +137,10 @@
     <!-- ── PANEL PHẢI: Document Filter ──────────────────────── -->
     <aside id="docFilterPanel" class="w-60 flex-shrink-0 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col shadow-[-2px_0_10px_rgba(0,0,0,0.02)] hidden z-10 transition-colors duration-200">
         <div class="px-4 pt-4 pb-3 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-            <p class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Tài liệu</p>
-            <button onclick="toggleSelectAll()" id="selectAllBtn"
-                class="text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-700 dark:hover:text-emerald-300 font-medium bg-emerald-50 dark:bg-emerald-500/10 px-2 py-1 rounded transition-colors">Bỏ chọn tất cả</button>
+            <p class="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Tài liệu tham khảo</p>
         </div>
         <div id="docList" class="flex-1 overflow-y-auto py-2 px-2 space-y-1">
             <p class="text-xs text-slate-500 dark:text-slate-400 px-2 py-2">Đang tải...</p>
-        </div>
-        <div class="px-3 py-2 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/50">
-            <p id="filterInfo" class="text-xs font-medium text-slate-500 dark:text-slate-400 text-center">Tất cả tài liệu được chọn</p>
         </div>
     </aside>
 </div>
@@ -232,13 +227,14 @@ async function loadDocFilter(subjectId) {
     allDocIds = [];
 
     try {
-        const res = await fetch(`/Document?handler=SubjectDocuments&subjectId=${subjectId}`);
+        const url = new URL(`/Document?handler=SubjectDocuments&subjectId=${subjectId}`, window.location.origin);
+        url.searchParams.set('_t', new Date().getTime());
+        const res = await fetch(url.toString(), { cache: "no-store" });
         const docs = await res.json();
         allDocIds = docs.map(d => d.id || d.Id);
 
         if (docs.length === 0) {
             list.innerHTML = '<p class="text-xs text-slate-500 px-2 py-3">Chưa có tài liệu nào được tải lên.</p>';
-            updateFilterInfo();
             return;
         }
 
@@ -257,44 +253,46 @@ async function loadDocFilter(subjectId) {
                 const docId = d.id || d.Id;
                 const docFileName = d.fileName || d.FileName;
                 return `
-                <label class="flex items-start gap-2.5 px-2 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer group transition-colors">
-                    <input type="checkbox" value="${docId}" checked
-                        onchange="updateFilterInfo()"
-                        class="doc-checkbox mt-0.5 w-3.5 h-3.5 rounded border-slate-300 dark:border-slate-600 text-emerald-500 focus:ring-emerald-500 focus:ring-1 cursor-pointer flex-shrink-0 transition-colors dark:bg-slate-950 dark:checked:bg-emerald-500">
+                <div class="flex items-start gap-2.5 px-2 py-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 group transition-colors">
+                    <i class="fa-regular fa-file-lines text-emerald-500 mt-0.5"></i>
                     <span class="text-xs font-medium text-slate-600 dark:text-slate-300 leading-snug break-all group-hover:text-emerald-700 dark:group-hover:text-slate-100 transition-colors" title="${docFileName}">${docFileName}</span>
-                </label>`;
+                </div>`;
             }).join('');
             html += `</div>`;
         }
         list.innerHTML = html;
 
-        updateFilterInfo();
     } catch(e) {
         list.innerHTML = '<p class="text-xs text-red-500 px-2 py-2">Lỗi tải danh sách.</p>';
     }
 }
 
 function getSelectedDocIds() {
-    return [...document.querySelectorAll('.doc-checkbox:checked')].map(c => parseInt(c.value));
+    return []; // No longer filtering by documents
 }
 
-function updateFilterInfo() {
-    const selected = getSelectedDocIds().length;
-    const total = allDocIds.length;
-    document.getElementById("filterInfo").textContent =
-        selected === total ? "Tất cả tài liệu được chọn" : `${selected}/${total} tài liệu được chọn`;
-    document.getElementById("selectAllBtn").textContent =
-        selected === total ? "Bỏ chọn tất cả" : "Chọn tất cả";
-}
+// ── SignalR AppNotificationHub (For real-time UI updates) ───
+const notifConnection = new signalR.HubConnectionBuilder()
+    .withUrl("/appNotificationHub")
+    .configureLogging(signalR.LogLevel.Warning)
+    .build();
 
-function toggleSelectAll() {
-    const checkboxes = document.querySelectorAll('.doc-checkbox');
-    const allChecked = [...checkboxes].every(c => c.checked);
-    checkboxes.forEach(c => c.checked = !allChecked);
-    updateFilterInfo();
-}
+notifConnection.on("DocumentListChanged", () => {
+    if (currentSubjectId) loadDocFilter(currentSubjectId);
+});
 
-// ── SignalR Callbacks ────────────────────────────────────────
+async function startNotifConnection() {
+    try {
+        if (notifConnection.state === signalR.HubConnectionState.Connected) return;
+        await notifConnection.start();
+    } catch (err) {
+        setTimeout(startNotifConnection, 5000);
+    }
+}
+notifConnection.onclose(startNotifConnection);
+startNotifConnection();
+
+// ── SignalR ChatHub Callbacks ────────────────────────────────
 connection.on("SessionCreated", id => { currentSessionId = id; });
 
 connection.on("SessionLoaded", (sessionId, messages) => {
