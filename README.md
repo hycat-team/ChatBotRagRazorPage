@@ -62,64 +62,6 @@ CHATBOTRAG
 
 ![System architecture](./Docs/ass2.png)
 
-### Sơ Đồ Liên Kết Kiến Trúc
-
-```mermaid
-graph TD
-    %% Định nghĩa các lớp
-    subgraph PresentationLayer ["1. Tầng Trình Diễn (RagChatbot.PresentationRazorPage)"]
-        UI["Trình Duyệt (Razor Pages / JS / CSS)"]
-        Ctrl["PageModel / Razor Pages"]
-        Hub["ChatHub (SignalR)"]
-
-        UI <-->|HTTP Request/Response| Ctrl
-        UI <-->|WebSockets| Hub
-    end
-
-    subgraph BusinessLayer ["2. Tầng Nghiệp Vụ (RagChatbot.Business)"]
-        ISrv["Các Service Interfaces \n(ISubjectService, IChatService, ...)"]
-        Srv["Các Service Implementations \n(Xử lý Logic, Xoay vòng API, RAG)"]
-
-        ISrv -.->|Implement| Srv
-    end
-
-    subgraph DataAccessLayer ["3. Tầng Dữ Liệu (RagChatbot.DataAccess)"]
-        IRepo["Các Repository Interfaces \n(IRepository)"]
-        Repo["Các Repositories \n(Gọi EF Core)"]
-        EFCore["Entity Framework Core \n(ApplicationDbContext)"]
-
-        IRepo -.->|Implement| Repo
-        Repo --> EFCore
-    end
-
-    subgraph External ["4. Các Dịch Vụ Bên Ngoài"]
-        GoogleAI["Google AI Studio \n(Gemini + Embedding)"]
-        Drive["Google Drive"]
-        Postgres["PostgreSQL + pgvector \n(Vector Database)"]
-    end
-
-    %% Thiết lập luồng dữ liệu / Dependency
-    Ctrl -->|Tiêm phụ thuộc (DI)| ISrv
-    Hub -->|Tiêm phụ thuộc (DI)| ISrv
-
-    Srv -->|Tiêm phụ thuộc (DI)| IRepo
-    Srv -->|HTTP/SDK| GoogleAI
-    Srv -->|API| Drive
-
-    EFCore -->|SQL/TCP| Postgres
-
-    %% Style
-    classDef pres fill:#e1f5fe,stroke:#03a9f4,stroke-width:2px;
-    classDef bus fill:#e8f5e9,stroke:#4caf50,stroke-width:2px;
-    classDef data fill:#fff3e0,stroke:#ff9800,stroke-width:2px;
-    classDef ext fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px;
-
-    class PresentationLayer pres;
-    class BusinessLayer bus;
-    class DataAccessLayer data;
-    class External ext;
-```
-
 ### Giải thích Luồng Hoạt Động
 
 1. **Người dùng** thao tác trên trình duyệt (Upload file, gửi tin nhắn).
