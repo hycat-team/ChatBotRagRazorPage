@@ -10,35 +10,35 @@
 - **Realtime Streaming Chat:** Dùng **SignalR** để stream từng token phản hồi của AI về giao diện (giống ChatGPT).
 - **Trích Dẫn Thông Minh (Citations):** Cuối mỗi câu trả lời, Bot chỉ rõ tên file và số trang đã dùng làm ngữ cảnh.
 - **Lịch sử Chat:** Hệ thống lưu và tải lại lịch sử hội thoại theo từng môn học.
-- **Xem tài lieu: Hệ thống cho phép học sinh xem tài lieu mà giảng viên đã up lên nếu muốn theo dõi chi tiết 
+- \*\*Xem tài lieu: Hệ thống cho phép học sinh xem tài lieu mà giảng viên đã up lên nếu muốn theo dõi chi tiết
 
 ## Kiến Trúc Kỹ Thuật
 
-| Thành phần | Công nghệ |
-|---|---|
-| Backend Framework | ASP.NET Core MVC (.NET 8) |
-| Cơ sở dữ liệu | PostgreSQL + `pgvector` (Docker) |
-| ORM | Entity Framework Core |
-| AI / LLM | Google AI Studio (`gemini-1.5-flash`) |
-| Embedding Model | `text-embedding-004` (768 chiều) |
-| Real-time | ASP.NET Core SignalR |
-| File Parsing | `UglyToad.PdfPig` (PDF), `DocumentFormat.OpenXml` (DOCX) |
-| Text Chunking | `Microsoft.SemanticKernel.Text.TextChunker` + Custom Numeric Masking |
-| Frontend | Razor Views + Tailwind CSS + ViewModels |
-| Data Transfer | Data Transfer Objects (DTOs) |
+| Thành phần        | Công nghệ                                                            |
+| ----------------- | -------------------------------------------------------------------- |
+| Backend Framework | ASP.NET Core Razor Pages (.NET 8)                                    |
+| Cơ sở dữ liệu     | PostgreSQL + `pgvector` (Docker)                                     |
+| ORM               | Entity Framework Core                                                |
+| AI / LLM          | Google AI Studio (`gemini-1.5-flash`)                                |
+| Embedding Model   | `text-embedding-004` (768 chiều)                                     |
+| Real-time         | ASP.NET Core SignalR                                                 |
+| File Parsing      | `UglyToad.PdfPig` (PDF), `DocumentFormat.OpenXml` (DOCX)             |
+| Text Chunking     | `Microsoft.SemanticKernel.Text.TextChunker` + Custom Numeric Masking |
+| Frontend          | Razor Pages + Bootstrap + ViewModels                                 |
+| Data Transfer     | Data Transfer Objects (DTOs)                                         |
 
 ## Cấu Trúc Dự Án (N-Tier Architecture)
 
-Dự án tuân thủ chặt chẽ mô hình **Clean Architecture / N-Tier**. Dữ liệu chỉ chảy theo một chiều từ trên xuống dưới thông qua **Dependency Injection (DI)**, giúp các tầng độc lập với nhau, dễ dàng nâng cấp và viết Unit Test.
+Dự án tuân thủ chặt chẽ mô hình **N-Tier**. Dữ liệu chỉ chảy theo một chiều từ trên xuống dưới thông qua **Dependency Injection (DI)**, giúp các tầng độc lập với nhau, dễ dàng nâng cấp và viết Unit Test.
 
 ```text
 CHATBOTRAG
 │
-├── RagChatbot.Presentation/   (Tầng Giao diện & Điều hướng)
-│   ├── Controllers/           (Xử lý HTTP requests: HomeController, DocumentController...)
-│   ├── Hubs/                  (Xử lý WebSockets theo thời gian thực: ChatHub)
-│   ├── ViewModels/            (Các ViewModel cho Razor Views)
-│   ├── Views/                 (Giao diện người dùng Razor HTML/CSS)
+├── RagChatbot.PresentationRazorPage/ (Tầng giao diện, Razor Pages, SignalR)
+│   ├── Pages/                 (Các trang Razor và PageModel xử lý request)
+│   ├── Hubs/                  (SignalR hubs: ChatHub, AppNotificationHub)
+│   ├── BackgroundJobs/        (Tác vụ nền: xử lý tài liệu, dọn chat log, email)
+│   ├── ViewModels/            (Các ViewModel dùng cho form/trang)
 │   ├── wwwroot/               (Chứa các file tĩnh: CSS, JS, thư viện ngoài...)
 │   ├── Properties/            (Chứa launchSettings.json)
 │   └── Program.cs             (Nơi cấu hình Middleware, Dependency Injection)
@@ -46,9 +46,9 @@ CHATBOTRAG
 ├── RagChatbot.Business/       (Tầng Xử Lý Nghiệp Vụ - Logic Layer)
 │   ├── DTOs/                  (Data Transfer Objects: SubjectDto, DocumentDto...)
 │   ├── Interfaces/            (Định nghĩa hợp đồng: IDocumentService, ITextChunkingService...)
-│   ├── Mappings/              (AutoMapper profiles)
-│   └── Services/              (Thực thi Logic: ChatService, AiService, TextChunkingService,
-│                                DocumentProcessingJob, VectorSearchService...)
+│   ├── Mappings/              (Mapping extensions)
+│   └── Services/              (Thực thi logic: ChatService, AiService, TextChunkingService,
+│                                VectorSearchService, GoogleDriveService...)
 │
 └── RagChatbot.DataAccess/     (Tầng Truy Xuất Dữ Liệu - Data Access Layer)
     ├── Data/                  (ApplicationDbContext: Cấu hình Entity Framework Core)
@@ -58,14 +58,18 @@ CHATBOTRAG
     └── Migrations/            (Lịch sử phiên bản lược đồ CSDL - Database Schema)
 ```
 
+### Ảnh kiến trúc hệ thống
+
+![System architecture](./Docs/ass2.png)
+
 ### Sơ Đồ Liên Kết Kiến Trúc
 
 ```mermaid
 graph TD
     %% Định nghĩa các lớp
-    subgraph PresentationLayer ["1. Tầng Trình Diễn (RagChatbot.Presentation)"]
-        UI["Trình Duyệt (Views / JS / CSS)"]
-        Ctrl["Controllers (HTTP)"]
+    subgraph PresentationLayer ["1. Tầng Trình Diễn (RagChatbot.PresentationRazorPage)"]
+        UI["Trình Duyệt (Razor Pages / JS / CSS)"]
+        Ctrl["PageModel / Razor Pages"]
         Hub["ChatHub (SignalR)"]
 
         UI <-->|HTTP Request/Response| Ctrl
@@ -88,9 +92,9 @@ graph TD
         Repo --> EFCore
     end
 
-    subgraph External ["4. Các Dịch Vụ Bên Ngoài (External APIs)"]
-        GoogleAI["Google AI Studio \n(Gemma 26B, Gemini Embedding)"]
-        Drive["Google Drive \n(Lưu Trữ File PDF)"]
+    subgraph External ["4. Các Dịch Vụ Bên Ngoài"]
+        GoogleAI["Google AI Studio \n(Gemini + Embedding)"]
+        Drive["Google Drive"]
         Postgres["PostgreSQL + pgvector \n(Vector Database)"]
     end
 
@@ -119,8 +123,8 @@ graph TD
 ### Giải thích Luồng Hoạt Động
 
 1. **Người dùng** thao tác trên trình duyệt (Upload file, gửi tin nhắn).
-2. Yêu cầu được gửi đến **Controllers** (nếu upload) hoặc **ChatHub** (nếu chat).
-3. Controllers/Hub không tự xử lý mà gọi xuống **Tầng Business** (ví dụ: `IDocumentService`, `IAiService`, `ITextChunkingService`) để thực thi logic nghiệp vụ.
+2. Yêu cầu được xử lý bởi **Razor Pages/PageModel** (các luồng web thông thường) hoặc **ChatHub** (luồng chat realtime).
+3. Razor Pages/Hub không tự xử lý mà gọi xuống **Tầng Business** (ví dụ: `IDocumentService`, `IAiService`, `ITextChunkingService`) để thực thi logic nghiệp vụ.
 4. **Xử lý Chunking thông minh:** `DocumentProcessingJob` điều phối quy trình xử lý tài liệu ngầm. Khi ghép nối text giữa các trang, nó dùng thuật toán quét ngược thông minh bỏ qua dấu chấm số (numeric period) để tránh cắt ngang các con số tài chính. Sau đó, `TextChunkingService` mask toàn bộ dấu chấm giữa chữ số bằng `ALPHANUMERICDOTMASK` trước khi chia nhỏ, đảm bảo tính toàn vẹn 100% cho các số như `43.000` hay `10.000.000`.
 5. Nếu Tầng Business cần đọc/ghi dữ liệu, nó sẽ gọi xuống **Tầng Data Access** thông qua các `Repository`. Tầng Data Access sẽ dùng Entity Framework Core để biến đổi code thành lệnh SQL chạy trên PostgreSQL.
 6. Nếu Tầng Business cần xử lý AI hoặc lưu trữ Cloud, nó sẽ gọi ra các API bên ngoài như Google AI Studio hoặc Google Drive.
@@ -133,9 +137,9 @@ graph TD
  (Nhập liệu)   │ (Hiển thị / Phản hồi)
        ▼       │
 ┌─────────────────────────────────────────────────────────┐
-│               PRESENTATION LAYER (WebMVC & SignalR)     │
+│            PRESENTATION LAYER (Razor Pages & SignalR)   │
 │                                                         │
-│   [View / UI] <────(Dữ liệu)────> [Controller / Hub]    │
+│   [View / UI] <────(Dữ liệu)────> [PageModel / Hub]     │
 └───────────────────────┬─────────────────▲───────────────┘
                         │                 │
              (Truyền tham số / DTO)  (Trả về DTO / ViewModel)
@@ -158,10 +162,10 @@ graph TD
        │ │                      ↕                       │
        │ │                 [DbContext]                  │
        │ └──────────────────────┬───────────────▲───────┘
-       │                        │               │        
+       │                        │               │
 (Gọi API bên ngoài)      (Gửi câu lệnh SQL) (Dữ liệu thô)
-       │                        │               │        
-       ▼                        ▼               │        
+       │                        │               │
+       ▼                        ▼               │
 ┌────────────────┐       ┌──────────────────────┴─────────┐
 │ [External APIs]│       │                                │
 │ - Google AI    │       │       [(Cơ sở dữ liệu)]        │
@@ -185,7 +189,7 @@ Dự án triển khai cơ chế **hai lớp bảo vệ** cho tính toàn vẹn d
 Tạo file `.env` ở thư mục gốc (xem `.env.example` để tham khảo):
 
 ```env
-DB_CONNECTION_STRING=Host=localhost;Port=5432;Database=RagChatbotDb;Username=postgres;Password=Password123!
+DB_CONNECTION_STRING=Host=localhost;Port=5433;Database=RagChatbotDb;Username=postgres;Password=Password123!
 GOOGLE_API_KEY=your_google_ai_studio_api_key_here
 ```
 
@@ -197,12 +201,12 @@ GOOGLE_API_KEY=your_google_ai_studio_api_key_here
 docker compose up -d
 ```
 
-Lệnh này khởi chạy PostgreSQL với `pgvector` tại cổng `5432`.
+Lệnh này khởi chạy PostgreSQL với `pgvector` và map ra cổng `5433`.
 
 ### Bước 3: Chạy Ứng Dụng Web
 
 ```bash
-cd RagChatbot.Presentation
+cd RagChatbot.PresentationRazorPage
 dotnet run
 ```
 
@@ -210,7 +214,7 @@ dotnet run
 
 ### Bước 4: Truy cập
 
-Mở trình duyệt tại `http://localhost:5000` (hoặc URL hiển thị trong console).
+Mở trình duyệt tại `http://localhost:5057` hoặc `https://localhost:7030` (theo `launchSettings.json`).
 
 ## Hướng Dẫn Sử Dụng
 
@@ -221,7 +225,7 @@ Mở trình duyệt tại `http://localhost:5000` (hoặc URL hiển thị trong
 
 ## Tài Liệu Chi Tiết
 
-| Tài liệu | Mô tả |
-|-----------|--------|
-| [SYSTEM_FLOW.md](./SYSTEM_FLOW.md) | Luồng hoạt động chi tiết: Document Ingestion & RAG Chat Flow |
-| [ENTITIES.md](./ENTITIES.md) | Mô tả Entities, DTOs, ViewModels & cấu hình DbContext |
+| Tài liệu                                     | Mô tả                                                        |
+| -------------------------------------------- | ------------------------------------------------------------ |
+| [Docs/SYSTEM_FLOW.md](./Docs/SYSTEM_FLOW.md) | Luồng hoạt động chi tiết: Document Ingestion & RAG Chat Flow |
+| [Docs/ENTITIES.md](./Docs/ENTITIES.md)       | Mô tả Entities, DTOs, ViewModels & cấu hình DbContext        |
