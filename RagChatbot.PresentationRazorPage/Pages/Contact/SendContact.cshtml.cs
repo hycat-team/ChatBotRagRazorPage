@@ -6,8 +6,8 @@ using System.Security.Claims;
 namespace RagChatbot.PresentationRazorPage.Pages.Contact
 {
     [Authorize]
-    [IgnoreAntiforgeryToken] // 👈 THÊM DÒNG NÀY: Để không bị lỗi bảo mật 400 khi gọi AJAX từ trang khác sang
-    public class SendContactModel : PageModel // 👈 ĐÃ ĐỔI: Thành SendContactModel cho khớp đường dẫn
+    [IgnoreAntiforgeryToken] //  THÊM DÒNG NÀY: Để không bị lỗi bảo mật 400 khi gọi AJAX từ trang khác sang
+    public class SendContactModel : PageModel //  ĐÃ ĐỔI: Thành SendContactModel cho khớp đường dẫn
     {
         private readonly RagChatbot.Business.Interfaces.IContactService _contactService;
 
@@ -16,7 +16,7 @@ namespace RagChatbot.PresentationRazorPage.Pages.Contact
             _contactService = contactService;
         }
 
-        // 👈 ĐÃ ĐỔI: Thành OnPostAsync để hứng trọn đường dẫn /Contact/SendContact mà không cần truyền handler lên URL
+        // ĐÃ ĐỔI: Thành OnPostAsync để hứng trọn đường dẫn /Contact/SendContact mà không cần truyền handler lên URL
         public async Task<IActionResult> OnPostAsync(string content, string type, int? relatedId)
         {
             if (string.IsNullOrWhiteSpace(content))
