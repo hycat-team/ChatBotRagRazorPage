@@ -256,8 +256,8 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
             if (document == null) return new JsonResult(new { success = false, message = "Document not found." });
 
             var isHod = User.IsInRole("HeadOfDepartment");
-            bool canDelete = User.IsInRole("Admin");
-            if (isHod && !canDelete)
+            bool canDelete = false;
+            if (isHod)
             {
                 var subject = await _subjectService.GetByIdAsync(document.SubjectId);
                 var hodUser = await _userService.GetByIdAsync(userId);
@@ -286,8 +286,8 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
 
             if (document == null) return new JsonResult(new { success = false, message = "Document not found." });
 
-            bool canToggle = User.IsInRole("Admin");
-            if (!canToggle && User.IsInRole("HeadOfDepartment"))
+            bool canToggle = false;
+            if (User.IsInRole("HeadOfDepartment"))
             {
                 var subject = await _subjectService.GetByIdAsync(document.SubjectId);
                 var hodUser = await _userService.GetByIdAsync(userId);
@@ -319,8 +319,8 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
             if (document == null) return new JsonResult(new { success = false, message = "Document not found." });
 
             var isHod = User.IsInRole("HeadOfDepartment");
-            bool canRename = User.IsInRole("Admin");
-            if (isHod && !canRename)
+            bool canRename = false;
+            if (isHod)
             {
                 var subject = await _subjectService.GetByIdAsync(document.SubjectId);
                 var hodUser = await _userService.GetByIdAsync(userId);
@@ -340,6 +340,35 @@ namespace RagChatbot.PresentationRazorPage.Pages.Document
             await _hubContext.Clients.All.SendAsync("DocumentListChanged");
 
             return new JsonResult(new { success = true, displayName = document.DisplayName });
+        }
+
+        public async Task<IActionResult> OnPostReportDocumentAsync(int id, string reason, [FromServices] RagChatbot.Business.Interfaces.IEmailQueue emailQueue)
+        {
+            var isAdmin = User.IsInRole("Admin");
+            if (!isAdmin) return new JsonResult(new { success = false, message = "Bạn không có quyền báo cáo tài liệu." });
+
+            if (string.IsNullOrWhiteSpace(reason)) return new JsonResult(new { success = false, message = "Vui lòng nhập lý do." });
+
+            var document = await _documentService.GetByIdAsync(id);
+            if (document == null) return new JsonResult(new { success = false, message = "Tài liệu không tồn tại." });
+
+            var subject = await _subjectService.GetByIdAsync(document.SubjectId);
+            if (subject == null || subject.DepartmentId == null) return new JsonResult(new { success = false, message = "Tài liệu này không thuộc khoa nào, không có HOD để báo cáo." });
+
+            var hods = await _userService.GetUsersByRoleAsync("HeadOfDepartment");
+            var targetHod = hods.FirstOrDefault(h => h.DepartmentId == subject.DepartmentId);
+
+            if (targetHod == null || string.IsNullOrEmpty(targetHod.Email)) return new JsonResult(new { success = false, message = "Không tìm thấy HOD của môn học này hoặc HOD chưa có email." });
+
+            var message = new RagChatbot.Business.Interfaces.EmailMessage(
+                targetHod.Email,
+                $"[CẢNH BÁO] Tài liệu bị báo cáo bởi Admin: {document.FileName}",
+                $"Xin chào {targetHod.FirstName} {targetHod.LastName},<br/><br/>Tài liệu <b>{document.FileName}</b> trong môn học <b>{subject.Code} - {subject.Name}</b> đã bị Admin báo cáo.<br/><br/><b>Lý do báo cáo:</b> {System.Net.WebUtility.HtmlEncode(reason)}<br/><br/>Vui lòng kiểm tra lại tài liệu này.<br/><br/>Trân trọng,<br/>Hệ thống Quản lý Tài liệu."
+            );
+
+            await emailQueue.QueueEmailAsync(message);
+
+            return new JsonResult(new { success = true });
         }
 
         public async Task<IActionResult> OnGetSubjectDocumentsAsync(int subjectId)

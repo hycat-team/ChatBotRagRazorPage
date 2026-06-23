@@ -177,7 +177,7 @@
                         </button>
                     }
 
-                    @if (User.IsInRole("Lecturer") || User.IsInRole("HeadOfDepartment"))
+                    @if (User.IsInRole("Admin") || User.IsInRole("Lecturer") || User.IsInRole("HeadOfDepartment"))
                     {
                         <a asp-page="/Document/Index"
                            class="nav-link flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-slate-500 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-colors">

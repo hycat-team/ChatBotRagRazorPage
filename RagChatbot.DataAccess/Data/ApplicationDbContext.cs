@@ -90,6 +90,10 @@ namespace RagChatbot.DataAccess.Data
                 new AppUser { Id = 4, Email = "student2@gmail.com", PasswordHash = HashPassword("@Cus2"), Role = "Student", FirstName = "Học", LastName = "Sinh 2" },
                 new AppUser { Id = 100, Email = "hod@gmail.com", PasswordHash = HashPassword("@Hod1"), Role = "HeadOfDepartment", FirstName = "Trưởng", LastName = "Khoa CNTT", DepartmentId = 1 }
             );
+
+            modelBuilder.Entity<HodTerm>().HasData(
+                new HodTerm { Id = 1, AppUserId = 100, DepartmentId = 1, StartAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc) }
+            );
         }
 
         private static string HashPassword(string password)

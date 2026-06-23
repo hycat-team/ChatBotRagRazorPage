@@ -199,19 +199,14 @@
                                             @{
                                                 bool isAdmin = User.IsInRole("Admin");
                                                 bool isHod = User.IsInRole("HeadOfDepartment");
-                                                bool canToggle = isAdmin || isHod;
-                                                bool canDeleteRename = isAdmin || isHod;
                                             }
-                                            @if (canToggle)
+                                            @if (isHod)
                                             {
                                                 <button data-id="@doc.Id" onclick="toggleDocActive(this)"
                                                         class="px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-400 dark:text-slate-500 hover:text-amber-500 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-500/10 border border-transparent transition-all"
                                                         title="@(doc.IsActive ? "Tắt tài liệu" : "Bật tài liệu")">
                                                     <i class="fa-solid @(doc.IsActive ? "fa-toggle-on text-emerald-500" : "fa-toggle-off text-slate-400") text-base"></i>
                                                 </button>
-                                            }
-                                            @if (canDeleteRename)
-                                            {
                                                 <button data-id="@doc.Id" data-currentname="@(string.IsNullOrWhiteSpace(doc.DisplayName) ? doc.FileName : doc.DisplayName)" onclick="inlineRenameDocument(this)"
                                                         class="px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-400 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-500/10 border border-transparent transition-all"
                                                         title="Đổi tên hiển thị">
@@ -220,6 +215,14 @@
                                                 <button data-id="@doc.Id" data-filename="@doc.FileName" onclick="deleteDocument(this)"
                                                         class="px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 border border-transparent hover:border-red-200 dark:hover:border-red-500/20 transition-all">
                                                     <i class="fa-solid fa-trash text-[10px]"></i>
+                                                </button>
+                                            }
+                                            @if (isAdmin)
+                                            {
+                                                <button data-id="@doc.Id" data-filename="@doc.FileName" onclick="openReportModal(this)"
+                                                        class="px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-400 dark:text-slate-500 hover:text-orange-500 dark:hover:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-500/10 border border-transparent transition-all"
+                                                        title="Báo cáo tài liệu này">
+                                                    <i class="fa-solid fa-flag"></i>
                                                 </button>
                                             }
                                         </div>
@@ -245,7 +248,38 @@
                 <i class="fa-solid fa-xmark"></i>
             </button>
         </div>
+        </div>
         <div class="flex-1 overflow-y-auto p-6 space-y-4" id="chunkModalContent">
+        </div>
+    </div>
+</div>
+
+<div id="reportModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-slate-900/40 dark:bg-slate-950/80 backdrop-blur-sm">
+    <div class="bg-white dark:bg-slate-900 w-full max-w-md mx-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden">
+        <div class="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 flex items-center justify-between">
+            <h3 class="font-bold text-slate-900 dark:text-white flex items-center gap-2 text-sm sm:text-base">
+                <i class="fa-solid fa-flag text-orange-500"></i> Báo cáo Tài liệu
+            </h3>
+            <button onclick="closeReportModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+                <i class="fa-solid fa-xmark text-lg"></i>
+            </button>
+        </div>
+        <div class="p-5 space-y-4 text-left">
+            <input type="hidden" id="reportDocId" />
+            <p class="text-sm font-semibold text-slate-800 dark:text-slate-200" id="reportDocName"></p>
+            <div>
+                <label class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">Lý do báo cáo</label>
+                <textarea id="reportReason" rows="4" placeholder="Nhập chi tiết lý do báo cáo để gửi cho Trưởng bộ môn..."
+                          class="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg focus:outline-none focus:border-orange-500 text-slate-800 dark:text-slate-100 placeholder-slate-400 resize-none"></textarea>
+            </div>
+        </div>
+        <div class="p-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-end gap-2.5 bg-slate-50/50 dark:bg-slate-900/30">
+            <button onclick="closeReportModal()" class="px-4 py-2 text-sm font-medium text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 transition-colors">
+                Hủy bỏ
+            </button>
+            <button onclick="submitReport()" id="btnSubmitReport" class="px-4 py-2 text-sm font-semibold text-white bg-orange-600 hover:bg-orange-500 active:bg-orange-700 rounded-lg transition-colors flex items-center gap-2 shadow-md shadow-orange-500/10">
+                <i class="fa-solid fa-paper-plane"></i> Gửi Báo Cáo
+            </button>
         </div>
     </div>
 </div>
@@ -422,6 +456,59 @@
                 window.location.reload();
             } else {
                 alert(data.message || 'Lỗi hệ thống');
+            }
+        }
+
+        function openReportModal(btn) {
+            document.getElementById('reportDocId').value = btn.dataset.id;
+            document.getElementById('reportDocName').textContent = "Tài liệu: " + btn.dataset.filename;
+            document.getElementById('reportReason').value = "";
+            const modal = document.getElementById("reportModal");
+            modal.classList.remove("hidden");
+            modal.classList.add("flex");
+        }
+
+        function closeReportModal() {
+            const modal = document.getElementById("reportModal");
+            modal.classList.add("hidden");
+            modal.classList.remove("flex");
+        }
+
+        async function submitReport() {
+            const id = document.getElementById('reportDocId').value;
+            const reason = document.getElementById('reportReason').value.trim();
+            const btnSubmit = document.getElementById('btnSubmitReport');
+
+            if (!reason) {
+                alert("Vui lòng nhập lý do báo cáo.");
+                return;
+            }
+
+            btnSubmit.disabled = true;
+            btnSubmit.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Đang gửi...`;
+
+            try {
+                const res = await fetch('/Document/Index?handler=ReportDocument', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]')?.value
+                    },
+                    body: `id=${id}&reason=${encodeURIComponent(reason)}`
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('success', 'Báo cáo thành công! Đã gửi email cảnh báo đến Trưởng bộ môn.');
+                    closeReportModal();
+                } else {
+                    showToast('error', data.message || 'Có lỗi xảy ra.');
+                }
+            } catch (err) {
+                console.error(err);
+                showToast('error', 'Có lỗi xảy ra trong quá trình báo cáo.');
+            } finally {
+                btnSubmit.disabled = false;
+                btnSubmit.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Gửi Báo Cáo`;
             }
         }
 
